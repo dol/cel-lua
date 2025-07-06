@@ -1,0 +1,31 @@
+# Rust formatter configuration for CEL Lua project
+# See https://rust-lang.github.io/rustfmt/ for all options
+# Using only stable features
+
+# Use the 2021 edition formatting
+edition = "2021"
+
+# Maximum line width
+max_width = 100
+
+# Use spaces instead of tabs
+hard_tabs = false
+tab_spaces = 4
+
+# Newline style
+newline_style = "Unix"
+
+# Remove nested parentheses where possible
+remove_nested_parens = true
+
+# Fn parameter alignment
+fn_params_layout = "Tall"
+
+# Use verbose function call style when it improves readability
+fn_call_width = 80
+
+# Chain width before breaking
+chain_width = 80
+
+# Single line if statement width
+single_line_if_else_max_width = 80

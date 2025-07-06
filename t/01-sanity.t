@@ -60,7 +60,7 @@ context created
 
             local p = program.new()
             local compiled, err = p:compile("name == 'world'")
-            
+
             if not compiled then
                 ngx.say("compilation failed: " .. err)
                 return
@@ -100,7 +100,7 @@ true
 
             local p = program.new()
             local compiled, err = p:compile("age > 18")
-            
+
             if not compiled then
                 ngx.say("compilation failed: " .. err)
                 return
@@ -137,7 +137,7 @@ true
             local program = require("resty.cel.program")
 
             local result, err = program.validate("name == 'test' && age > 21")
-            
+
             if not result then
                 ngx.say("validation failed: " .. err)
                 return

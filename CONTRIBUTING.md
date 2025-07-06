@@ -49,6 +49,7 @@ Thank you for your interest in contributing to CEL Lua! This document provides g
    ```
 
 3. **Code Formatting**
+
    ```bash
    cargo fmt         # Format Rust code
    cargo clippy      # Run linter
@@ -56,7 +57,7 @@ Thank you for your interest in contributing to CEL Lua! This document provides g
 
 ## Project Structure
 
-```
+```plain
 cel-lua/
 ├── src/           # Rust source code
 │   ├── lib.rs     # Main library entry point

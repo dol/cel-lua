@@ -2,9 +2,9 @@
 
 ## ✅ Completed
 
-✅ **Project Structure**: Based on atc-router with Rust backend and Lua frontend  
-✅ **Build System**: Makefile with proper targets for building, testing, and examples (FIXED: paths corrected)  
-✅ **FFI Integration**: Working Rust-to-Lua bindings with proper memory management  
+✅ **Project Structure**: Based on atc-router with Rust backend and Lua frontend
+✅ **Build System**: Makefile with proper targets for building, testing, and examples (FIXED: paths corrected)
+✅ **FFI Integration**: Working Rust-to-Lua bindings with proper memory management
 ✅ **String Memory Management**: Implemented proper string pool with cleanup functions
 ✅ **Core Functionality**:
 
@@ -44,10 +44,10 @@
 
 ## 🔄 Next Priorities
 
-🚧 **Complex Data Types**: Add support for lists, maps, and nested objects in context  
-🚧 **Enhanced Context**: Support for Lua tables as CEL map/list variables  
-🚧 **Performance**: Optimize memory usage and execution speed  
-🚧 **OpenResty Integration**: Test with nginx/OpenResty environments  
+🚧 **Complex Data Types**: Add support for lists, maps, and nested objects in context
+🚧 **Enhanced Context**: Support for Lua tables as CEL map/list variables
+🚧 **Performance**: Optimize memory usage and execution speed
+🚧 **OpenResty Integration**: Test with nginx/OpenResty environments
 🚧 **Advanced CEL Features**: Timestamps, durations, and custom functions
 
 ## 🚀 Quick Test

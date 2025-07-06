@@ -53,7 +53,7 @@ At the core of the library, CEL Lua is a wrapper around the [CEL (Common Express
 ### Supported Data Types
 
 - `null` - null/nil value
-- `bool` - boolean true/false  
+- `bool` - boolean true/false
 - `int` - 64-bit signed integer
 - `uint` - 64-bit unsigned integer
 - `double` - 64-bit floating point
@@ -67,7 +67,8 @@ At the core of the library, CEL Lua is a wrapper around the [CEL (Common Express
 - **String**: concatenation with `+`
 - **Ternary**: `condition ? true_value : false_value`
 
-Please refer to the [CEL specification](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for detailed language documentation.
+Please refer to the [CEL specification](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for
+detailed language documentation.
 
 ## Usage Examples
 
@@ -108,7 +109,7 @@ lua_package_cpath '/path/to/cel-lua/target/release/?.so;;';
 location = /cel_example {
     content_by_lua_block {
         local cel = require("cel")
-        
+
         local program = cel.program.new()
         local context = cel.context.new()
         local compiled, err = program:compile("name == 'world' && age > 18")

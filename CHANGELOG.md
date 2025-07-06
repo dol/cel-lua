@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Core Operations**: Arithmetic, logical, comparison operators
 - **String Operations**: Concatenation and literals
-- **Variable Binding**: Dynamic context with named variables  
+- **Variable Binding**: Dynamic context with named variables
 - **Expression Validation**: Compile-time checking and variable detection
 - **Memory Safety**: Proper string cleanup and memory management
 

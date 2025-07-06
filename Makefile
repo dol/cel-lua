@@ -15,12 +15,11 @@ DOCKER ?= docker
 _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 
 # Set default run flags:
-# - allocate a pseudo-tty
 # - remove container on exit
 # - set username/UID to executor
 DOCKER_USER ?= $$(id -u)
 DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
-DOCKER_RUN_FLAGS_TTY ?= --tty
+DOCKER_RUN_FLAGS_TTY ?=
 DOCKER_RUN_FLAGS ?= --rm --interactive $(DOCKER_RUN_FLAGS_TTY) $(DOCKER_USER_OPT)
 
 MOUNT_PATH_IN_CONTAINER := /workspace
@@ -65,7 +64,7 @@ CONTAINER_CI_TOOLING_BUILD = DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=$(BUILDKIT_PROG
 	.
 
 # TODO:
-CONTAINER_CI_TOOLING_RUN := MSYS_NO_PATHCONV=1 $(DOCKER) run $(DOCKER_RUN_FLAGS) \
+CONTAINER_CI_TOOLING_RUN ?= MSYS_NO_PATHCONV=1 $(DOCKER) run $(DOCKER_RUN_FLAGS) \
 	-e BUSTED_EMMY_DEBUGGER_HOST='0.0.0.0' \
 	-e BUSTED_EMMY_DEBUGGER_PORT='9966' \
 	-e BUSTED_EMMY_DEBUGGER_SOURCE_PATH='/usr/local/share/lua/5.1/kong/plugins:/usr/local/share/lua/5.1/kong/enterprise_edition' \
@@ -107,7 +106,7 @@ test-results:
 	mkdir -p $(TEST_RESULTS_PATH)
 
 .PHONY: test
-test: lint test-unit
+test: lint check test-unit
 
 .PHONY: pack
 pack: $(ROCK_RELEASE_FILE)
@@ -121,13 +120,27 @@ container-ci-tooling-debug: BUILDKIT_PROGRESS = 'plain'
 container-ci-tooling-debug: DOCKER_NO_CACHE = '--no-cache'
 container-ci-tooling-debug: container-ci-tooling
 
-.PHONY: lint
-lint: container-ci-tooling
+.PHONY: lint-lua
+lint-lua: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luacheck --no-default-config --config .luacheckrc .)'
 
-.PHONY: format-code
-format-code: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); stylua --check . || stylua --verify .)'
+.PHONY: lint-rust
+lint-rust: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo clippy --all-targets --all-features -- -D warnings)'
+
+.PHONY: lint
+lint: lint-lua lint-rust
+
+.PHONY: format-lua
+format-lua: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); stylua .)'
+
+.PHONY: format-rust
+format-rust:
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo fmt)'
+
+.PHONY: format
+format: format-lua format-rust
 
 .PHONY: test-unit
 test-unit: clean-test-results test-results container-ci-tooling
@@ -140,6 +153,7 @@ test-unit: clean-test-results test-results container-ci-tooling
 	fi
 
 .PHONY: tooling-shell
+tooling-shell: DOCKER_RUN_FLAGS_TTY=--tty
 tooling-shell: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) bash
 
@@ -161,6 +175,10 @@ clean-rockspec:
 clean-rock:
 	-$(RMDIR) *.rock
 
+.PHONY: clean-target
+clean-target:
+	-$(RMDIR) target
+
 .PHONY: clean-container-ci-tooling
 clean-container-ci-tooling:
 	-$(DOCKER) rmi '$(CONTAINER_CI_TOOLING_IMAGE_NAME)'
@@ -168,5 +186,6 @@ clean-container-ci-tooling:
 .PHONY: clean
 clean: clean-test-results
 clean: clean-rock clean-rockspec
+clean: clean-target
 clean: clean-container-ci-tooling
 	-$(RMDIR) .luarocks

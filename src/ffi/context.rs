@@ -82,12 +82,12 @@ fn cel_value_to_json(value: &CelValue) -> Result<serde_json::Value, String> {
     match value.value_type {
         CelValueType::Null => Ok(serde_json::Value::Null),
         CelValueType::Bool => Ok(serde_json::Value::Bool(unsafe { value.data.bool_val })),
-        CelValueType::Int => Ok(serde_json::Value::Number(serde_json::Number::from(
-            unsafe { value.data.int_val },
-        ))),
-        CelValueType::Uint => Ok(serde_json::Value::Number(serde_json::Number::from(
-            unsafe { value.data.uint_val },
-        ))),
+        CelValueType::Int => Ok(serde_json::Value::Number(serde_json::Number::from(unsafe {
+            value.data.int_val
+        }))),
+        CelValueType::Uint => Ok(serde_json::Value::Number(serde_json::Number::from(unsafe {
+            value.data.uint_val
+        }))),
         CelValueType::Double => {
             let float_val = unsafe { value.data.double_val };
             match serde_json::Number::from_f64(float_val) {

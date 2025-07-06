@@ -1,0 +1,21 @@
+# Clippy configuration for CEL Lua project
+# See https://doc.rust-lang.org/clippy/configuration.html for all options
+
+# Allowed lints for FFI code
+# Since this project has significant FFI components, we allow some clippy lints
+# that are commonly triggered by FFI patterns but are necessary for the API
+
+# Maximum cyclomatic complexity before clippy warns
+cognitive-complexity-threshold = 25
+
+# Maximum number of lines for a function before clippy warns
+too-many-lines-threshold = 150
+
+# Maximum number of arguments for a function before clippy warns
+too-many-arguments-threshold = 8
+
+# Minimum number of enum variants before clippy suggests using Box
+enum-variant-size-threshold = 300
+
+# Allow missing safety docs for FFI functions (can be overridden per function)
+# Note: This is handled in code with #[allow(clippy::missing_safety_doc)] where appropriate

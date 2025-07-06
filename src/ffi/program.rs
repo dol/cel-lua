@@ -42,9 +42,7 @@ impl Program {
             cel_ctx.add_variable_from_value(name, cel_value);
         }
 
-        program
-            .execute(&cel_ctx)
-            .map_err(|e| format!("Execution error: {}", e))
+        program.execute(&cel_ctx).map_err(|e| format!("Execution error: {}", e))
     }
 
     pub fn get_variables(&self) -> &[String] {

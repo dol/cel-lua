@@ -49,13 +49,15 @@ dofile('spec/test_helper.lua')
 The test suite covers:
 
 ### Basic Functionality
+
 - ✅ Module loading
-- ✅ Arithmetic operations (+, -, *, /, %)
+- ✅ Arithmetic operations (+, -, \*, /, %)
 - ✅ Boolean operations (&&, ||, !)
 - ✅ Comparison operations (==, !=, <, >, <=, >=)
 - ✅ Parentheses and operator precedence
 
 ### Variables and Context
+
 - ✅ Variable creation and management
 - ✅ Different data types (string, number, boolean, nil)
 - ✅ Variable usage in expressions
@@ -63,6 +65,7 @@ The test suite covers:
 - ✅ Error handling for invalid variables
 
 ### Program Management
+
 - ✅ Program compilation
 - ✅ Program execution
 - ✅ Expression validation
@@ -71,6 +74,7 @@ The test suite covers:
 - ✅ Memory management
 
 ### Environment Compatibility
+
 - ✅ Automatic OpenResty detection
 - ✅ Polyfill fallback for non-OpenResty environments
 - ✅ Unified implementation consistency
@@ -78,6 +82,7 @@ The test suite covers:
 - ✅ String cleanup behavior
 
 ### Performance
+
 - ✅ Compilation speed
 - ✅ Execution speed
 - ✅ Memory efficiency
@@ -88,17 +93,20 @@ The test suite covers:
 ## Test Requirements
 
 ### Runtime Requirements
+
 - LuaJIT 2.1+
 - The CEL Lua library files in `lib/`
 - The compiled CEL library (`libcel_lua.so` or `libcel_lua.dylib`)
 
 ### Optional Dependencies
+
 - Busted testing framework (for advanced test running)
 - OpenResty (for testing OpenResty-specific functionality)
 
 ## Test Configuration
 
 The `.busted` file configures Busted to:
+
 - Look for tests in the `spec/` directory
 - Use the `_spec` pattern for test files
 - Run with LuaJIT
@@ -122,11 +130,11 @@ test_helper.setup_lua_path()
 
 describe("Feature Name", function()
     local cel
-    
+
     before_each(function()
         cel = require("cel")
     end)
-    
+
     describe("Specific Functionality", function()
         it("should do something", function()
             local result, err = test_helper.eval_expression(cel, "1 + 1")
@@ -140,8 +148,9 @@ end)
 ## Continuous Integration
 
 These tests are designed to work in CI environments and can be run in:
+
 - Pure Lua/LuaJIT environments
-- OpenResty environments  
+- OpenResty environments
 - Docker containers
 - GitHub Actions
 - Any environment with the CEL library compiled

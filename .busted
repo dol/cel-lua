@@ -3,7 +3,7 @@ local current_folder = debug.getinfo(1).source:match("@?(.*/)"):sub(1, -2)
 
 return {
   _all = {
-    ROOT = {current_folder .. "/spec"},
+    ROOT = { current_folder .. "/spec" },
     verbose = false,
     ["coverage-config-file"] = current_folder .. "/.luacov",
   },
