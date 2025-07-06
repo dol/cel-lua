@@ -26,7 +26,7 @@ impl Program {
                 self.program = Some(program);
                 Ok(())
             }
-            Err(e) => Err(format!("Compilation error: {}", e)),
+            Err(e) => Err(format!("Compilation error: {e}")),
         }
     }
 
@@ -38,15 +38,21 @@ impl Program {
 
         for (name, value) in context.get_variables() {
             let cel_value = json_to_cel_value(value)
-                .map_err(|e| format!("Error converting variable '{}': {}", name, e))?;
+                .map_err(|e| format!("Error converting variable '{name}': {e}"))?;
             cel_ctx.add_variable_from_value(name, cel_value);
         }
 
-        program.execute(&cel_ctx).map_err(|e| format!("Execution error: {}", e))
+        program.execute(&cel_ctx).map_err(|e| format!("Execution error: {e}"))
     }
 
     pub fn get_variables(&self) -> &[String] {
         &self.variables
+    }
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -57,6 +63,12 @@ pub extern "C" fn program_new() -> *mut Program {
 }
 
 /// Free a program instance
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `program` is either null or a valid pointer returned by `program_new`
+/// - `program` has not been previously freed
+/// - No other references to the program exist
 #[no_mangle]
 pub unsafe extern "C" fn program_free(program: *mut Program) {
     if !program.is_null() {
@@ -65,6 +77,13 @@ pub unsafe extern "C" fn program_free(program: *mut Program) {
 }
 
 /// Compile a CEL expression
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `program` is a valid mutable reference to a Program
+/// - `expression` is a valid null-terminated C string
+/// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
+/// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]
 pub unsafe extern "C" fn program_compile(
     program: &mut Program,
@@ -75,7 +94,7 @@ pub unsafe extern "C" fn program_compile(
     let expr_str = match CStr::from_ptr(expression).to_str() {
         Ok(s) => s,
         Err(e) => {
-            let error_msg = format!("Invalid expression string: {}", e);
+            let error_msg = format!("Invalid expression string: {e}");
             copy_error_to_buffer(&error_msg, errbuf, errbuf_len);
             return false;
         }
@@ -91,6 +110,14 @@ pub unsafe extern "C" fn program_compile(
 }
 
 /// Execute the compiled expression
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `program` is a valid reference to a Program with a compiled expression
+/// - `context` is a valid reference to a Context
+/// - `result` is a valid pointer to a CelValue struct that can be written to
+/// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
+/// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]
 pub unsafe extern "C" fn program_execute(
     program: &Program,
@@ -115,6 +142,14 @@ pub unsafe extern "C" fn program_execute(
 }
 
 /// Validate a CEL expression and return variables
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `expression` is a valid null-terminated C string
+/// - `_variables` is either null or a valid pointer to receive variable names (not currently implemented)
+/// - `variables_len` is either null or a valid pointer to receive the variable count
+/// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
+/// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]
 pub unsafe extern "C" fn program_validate(
     expression: *const c_char,
@@ -126,7 +161,7 @@ pub unsafe extern "C" fn program_validate(
     let expr_str = match CStr::from_ptr(expression).to_str() {
         Ok(s) => s,
         Err(e) => {
-            let error_msg = format!("Invalid expression string: {}", e);
+            let error_msg = format!("Invalid expression string: {e}");
             copy_error_to_buffer(&error_msg, errbuf, errbuf_len);
             return false;
         }
@@ -143,7 +178,7 @@ pub unsafe extern "C" fn program_validate(
             true
         }
         Err(e) => {
-            let error_msg = format!("Validation error: {}", e);
+            let error_msg = format!("Validation error: {e}");
             copy_error_to_buffer(&error_msg, errbuf, errbuf_len);
             false
         }

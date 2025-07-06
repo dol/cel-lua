@@ -35,6 +35,12 @@ pub extern "C" fn context_new() -> *mut Context {
 }
 
 /// Free a context instance
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `context` is either null or a valid pointer returned by `context_new`
+/// - `context` has not been previously freed
+/// - No other references to the context exist
 #[no_mangle]
 pub unsafe extern "C" fn context_free(context: *mut Context) {
     if !context.is_null() {
@@ -43,6 +49,14 @@ pub unsafe extern "C" fn context_free(context: *mut Context) {
 }
 
 /// Add a variable to the context
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `context` is a valid mutable reference to a Context
+/// - `name` is a valid null-terminated C string
+/// - `value` is a valid reference to a CelValue
+/// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
+/// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]
 pub unsafe extern "C" fn context_add_variable(
     context: &mut Context,
@@ -54,7 +68,7 @@ pub unsafe extern "C" fn context_add_variable(
     let name_str = match CStr::from_ptr(name).to_str() {
         Ok(s) => s.to_string(),
         Err(e) => {
-            let error_msg = format!("Invalid variable name: {}", e);
+            let error_msg = format!("Invalid variable name: {e}");
             copy_error_to_buffer(&error_msg, errbuf, errbuf_len);
             return false;
         }
@@ -73,6 +87,9 @@ pub unsafe extern "C" fn context_add_variable(
 }
 
 /// Reset the context, clearing all variables
+///
+/// # Safety
+/// The caller must ensure that `context` is a valid mutable reference to a Context
 #[no_mangle]
 pub unsafe extern "C" fn context_reset(context: &mut Context) {
     context.reset();
@@ -92,7 +109,7 @@ fn cel_value_to_json(value: &CelValue) -> Result<serde_json::Value, String> {
             let float_val = unsafe { value.data.double_val };
             match serde_json::Number::from_f64(float_val) {
                 Some(num) => Ok(serde_json::Value::Number(num)),
-                None => Err(format!("Invalid float value: {}", float_val)),
+                None => Err(format!("Invalid float value: {float_val}")),
             }
         }
         CelValueType::String => {
@@ -100,7 +117,7 @@ fn cel_value_to_json(value: &CelValue) -> Result<serde_json::Value, String> {
             let slice = unsafe { std::slice::from_raw_parts(string_val.ptr, string_val.len) };
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(serde_json::Value::String(s.to_string())),
-                Err(e) => Err(format!("Invalid UTF-8 string: {}", e)),
+                Err(e) => Err(format!("Invalid UTF-8 string: {e}")),
             }
         }
         _ => Err("Unsupported value type".to_string()),

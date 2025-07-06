@@ -84,6 +84,8 @@ pub union CelValueData {
 }
 
 // Helper function to convert C string to Rust string
+/// # Safety
+/// The caller must ensure that `ptr` is a valid null-terminated C string pointer
 pub unsafe fn c_str_to_string(ptr: *const c_char) -> Result<String, std::str::Utf8Error> {
     let c_str = CStr::from_ptr(ptr);
     Ok(c_str.to_str()?.to_string())
@@ -110,6 +112,12 @@ pub fn release_string_from_pool(ptr: *const u8) {
 }
 
 /// Free a string that was allocated by the library
+///
+/// # Safety
+/// The caller must ensure that:
+/// - `ptr` is either null or a valid pointer returned by a CEL library function
+/// - `ptr` has not been previously freed
+/// - No other references to the string exist
 #[no_mangle]
 pub unsafe extern "C" fn cel_string_free(ptr: *const u8) {
     if !ptr.is_null() {
