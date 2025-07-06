@@ -1,0 +1,36 @@
+language = "C"
+include_version = true
+namespace = "cel_lua"
+style = "both"
+
+[export]
+include = [
+    "Context",
+    "Program",
+    "CelValue",
+    "CelValueType",
+    "CelValueData",
+    "CelStringValue",
+    "CelBytesValue",
+]
+
+[parse]
+parse_deps = true
+include = ["cel-interpreter"]
+
+[fn]
+args = "horizontal"
+ret = "horizontal"
+
+[struct]
+associated_constants_in_body = true
+derive_eq = true
+derive_neq = true
+
+[enum]
+derive_eq = true
+derive_neq = true
+derive_tagged_enum_copy_constructor = true
+
+[defines]
+"feature = serde" = "SERDE"

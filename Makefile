@@ -1,0 +1,172 @@
+VERSION ?= 0.1.0
+REVISION ?= 0
+
+LIB_FILES = $(shell find lib -type f -name '*.lua')
+
+ROCKSPEC_DEV_FILE := cel-dev-0.rockspec
+ROCKSPEC_RELEASE_FILE := cel-$(VERSION)-$(REVISION).rockspec
+ROCK_RELEASE_FILE := cel-$(VERSION)-$(REVISION).all.rock
+
+TEST_RESULTS_PATH := test-results
+
+# Overwrite if you want to use `docker` with sudo
+DOCKER ?= docker
+
+_docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
+
+# Set default run flags:
+# - allocate a pseudo-tty
+# - remove container on exit
+# - set username/UID to executor
+DOCKER_USER ?= $$(id -u)
+DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
+DOCKER_RUN_FLAGS_TTY ?= --tty
+DOCKER_RUN_FLAGS ?= --rm --interactive $(DOCKER_RUN_FLAGS_TTY) $(DOCKER_USER_OPT)
+
+MOUNT_PATH_IN_CONTAINER := /workspace
+
+DOCKER_NO_CACHE :=
+
+BUILDKIT_PROGRESS :=
+
+# Busted runtime profile
+BUSTED_RUN_PROFILE := default
+BUSTED_FILTER :=
+
+# Busted exclude tags
+BUSTED_EXCLUDE_TAGS :=
+BUSTED_NO_KEEP_GOING := false
+BUSTED_COVERAGE := false
+BUSTED_EMMY_DEBUGGER := false
+
+BUSTED_EMMY_DEBUGGER_ENABLED_ARGS =
+
+BUSTED_ARGS = --config-file $(MOUNT_PATH_IN_CONTAINER)/.busted --run '$(BUSTED_RUN_PROFILE)' --exclude-tags='$(BUSTED_EXCLUDE_TAGS)' --filter '$(BUSTED_FILTER)'
+ifneq ($(BUSTED_NO_KEEP_GOING), false)
+	BUSTED_ARGS += --no-keep-going
+endif
+
+ifneq ($(BUSTED_COVERAGE), false)
+	BUSTED_ARGS += --coverage
+endif
+
+ifneq ($(BUSTED_EMMY_DEBUGGER), false)
+	BUSTED_EMMY_DEBUGGER_ENABLED_ARGS = -e BUSTED_EMMY_DEBUGGER='/usr/local/lib/lua/5.1/emmy_core.so'
+endif
+
+CONTAINER_CI_TOOLING_IMAGE_PATH := hack/tooling
+
+CONTAINER_CI_TOOLING_IMAGE_NAME := localhost/cel-lua-test-tooling:0.1.0
+
+CONTAINER_CI_TOOLING_BUILD = DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) $(DOCKER) build \
+	-f '$(CONTAINER_CI_TOOLING_IMAGE_PATH)/Dockerfile' \
+	$(DOCKER_NO_CACHE) \
+	-t '$(CONTAINER_CI_TOOLING_IMAGE_NAME)' \
+	.
+
+# TODO:
+CONTAINER_CI_TOOLING_RUN := MSYS_NO_PATHCONV=1 $(DOCKER) run $(DOCKER_RUN_FLAGS) \
+	-e BUSTED_EMMY_DEBUGGER_HOST='0.0.0.0' \
+	-e BUSTED_EMMY_DEBUGGER_PORT='9966' \
+	-e BUSTED_EMMY_DEBUGGER_SOURCE_PATH='/usr/local/share/lua/5.1/kong/plugins:/usr/local/share/lua/5.1/kong/enterprise_edition' \
+	-e BUSTED_EMMY_DEBUGGER_SOURCE_PATH_MAPPING='$(MOUNT_PATH_IN_CONTAINER);$(PWD):/usr/local/share/lua/5.1;$(PWD)/.luarocks:/usr/local/openresty/lualib;$(PWD)/.luarocks' \
+	$(BUSTED_EMMY_DEBUGGER_ENABLED_ARGS) \
+	-v '$(PWD):$(MOUNT_PATH_IN_CONTAINER)' \
+	-v '$(PWD)/_build/debugger/emmy_debugger.lua:/usr/local/share/lua/5.1/kong/tools/emmy_debugger.lua' \
+	-v '$(PWD)/_build/debugger/busted:/kong/bin/busted' \
+	'$(CONTAINER_CI_TOOLING_IMAGE_NAME)'
+
+RM := rm
+RMDIR := $(RM) -rf
+
+TAG ?=
+
+.PHONY: all
+all: test
+
+$(ROCKSPEC_DEV_FILE): cel.rockspec
+	cp cel.rockspec $(ROCKSPEC_DEV_FILE)
+	$(CONTAINER_CI_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=dev-0 --dir .)'
+
+$(ROCKSPEC_RELEASE_FILE): $(ROCKSPEC_DEV_FILE)
+	$(CONTAINER_CI_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=v$(VERSION)-$(REVISION) --dir .)'
+
+.PHONY: release-rockspec
+release-rockspec: $(ROCKSPEC_RELEASE_FILE)
+
+.PHONY: release-rockspec
+release-info:
+	@echo "VERSION=v$(VERSION)-$(REVISION)"
+	@echo "ROCKSPEC_RELEASE_FILE=$(ROCKSPEC_RELEASE_FILE)"
+
+# Rebuild the rock file every time the rockspec or the lib/**.lua files change
+$(ROCK_RELEASE_FILE): container-ci-tooling $(ROCKSPEC_RELEASE_FILE) $(LIB_FILES)
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks make --pack-binary-rock --deps-mode none $(ROCKSPEC_RELEASE_FILE))'
+
+test-results:
+	mkdir -p $(TEST_RESULTS_PATH)
+
+.PHONY: test
+test: lint test-unit
+
+.PHONY: pack
+pack: $(ROCK_RELEASE_FILE)
+
+.PHONY: container-ci-tooling
+container-ci-tooling:
+	$(CONTAINER_CI_TOOLING_BUILD)
+
+.PHONY: container-ci-tooling-debug
+container-ci-tooling-debug: BUILDKIT_PROGRESS = 'plain'
+container-ci-tooling-debug: DOCKER_NO_CACHE = '--no-cache'
+container-ci-tooling-debug: container-ci-tooling
+
+.PHONY: lint
+lint: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luacheck --no-default-config --config .luacheckrc .)'
+
+.PHONY: format-code
+format-code: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); stylua --check . || stylua --verify .)'
+
+.PHONY: test-unit
+test-unit: clean-test-results test-results container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) busted $(BUSTED_ARGS)
+	@if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
+		$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov-console $(MOUNT_PATH_IN_CONTAINER)/kong; luacov-console -s);' ;\
+		$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r html; mv luacov.report.out luacov.report.html);' ;\
+		echo "Coverage report: file://$(PWD)/$(TEST_RESULTS_PATH)/luacov.report.html" ;\
+		$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
+	fi
+
+.PHONY: tooling-shell
+tooling-shell: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) bash
+
+.PHONY: lua-language-server-add-kong
+lua-language-server-add-kong: container-ci-tooling
+	-mkdir -p .luarocks
+	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/share/lua/5.1/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
+	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/openresty/lualib/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
+
+.PHONY: clean-test-results
+clean-test-results:
+	-$(RMDIR) test-results
+
+.PHONY: clean-rockspec
+clean-rockspec:
+	-$(RMDIR) cel-*.rockspec
+
+.PHONY: clean-rock
+clean-rock:
+	-$(RMDIR) *.rock
+
+.PHONY: clean-container-ci-tooling
+clean-container-ci-tooling:
+	-$(DOCKER) rmi '$(CONTAINER_CI_TOOLING_IMAGE_NAME)'
+
+.PHONY: clean
+clean: clean-test-results
+clean: clean-rock clean-rockspec
+clean: clean-container-ci-tooling
+	-$(RMDIR) .luarocks
