@@ -27,4 +27,6 @@ RUN curl https://sh.rustup.rs -sSf | CARGO_HOME=/rust/cargo sh -s -- -y \
   # Clean up apt cache
   && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /workspace
+
 # COPY hack/tooling/busted /usr/local/bin/busted

@@ -1,6 +1,12 @@
 VERSION ?= 0.1.0
 REVISION ?= 0
 
+ifeq ($(OS), Darwin)
+  SHLIB_EXT = dylib
+else
+  SHLIB_EXT = so
+endif
+
 LIB_FILES = $(shell find lib -type f -name '*.lua')
 
 ROCKSPEC_DEV_FILE := cel-dev-0.rockspec
@@ -75,6 +81,9 @@ CONTAINER_CI_TOOLING_RUN ?= MSYS_NO_PATHCONV=1 $(DOCKER) run $(DOCKER_RUN_FLAGS)
 	-v '$(PWD)/_build/debugger/busted:/kong/bin/busted' \
 	'$(CONTAINER_CI_TOOLING_IMAGE_NAME)'
 
+RELEASE_FOLDER = target/release
+DEBUG_RELEASE_FOLDER = target/debug
+
 RM := rm
 RMDIR := $(RM) -rf
 
@@ -85,10 +94,10 @@ all: test
 
 $(ROCKSPEC_DEV_FILE): cel.rockspec
 	cp cel.rockspec $(ROCKSPEC_DEV_FILE)
-	$(CONTAINER_CI_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=dev-0 --dir .)'
+	$(CONTAINER_CI_RUN) luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=dev-0 --dir .
 
 $(ROCKSPEC_RELEASE_FILE): $(ROCKSPEC_DEV_FILE)
-	$(CONTAINER_CI_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=v$(VERSION)-$(REVISION) --dir .)'
+	$(CONTAINER_CI_RUN) luarocks new_version $(ROCKSPEC_DEV_FILE) --tag=v$(VERSION)-$(REVISION) --dir .
 
 .PHONY: release-rockspec
 release-rockspec: $(ROCKSPEC_RELEASE_FILE)
@@ -100,7 +109,7 @@ release-info:
 
 # Rebuild the rock file every time the rockspec or the lib/**.lua files change
 $(ROCK_RELEASE_FILE): container-ci-tooling $(ROCKSPEC_RELEASE_FILE) $(LIB_FILES)
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luarocks make --pack-binary-rock --deps-mode none $(ROCKSPEC_RELEASE_FILE))'
+	$(CONTAINER_CI_TOOLING_RUN) luarocks make --pack-binary-rock --deps-mode none $(ROCKSPEC_RELEASE_FILE)
 
 test-results:
 	mkdir -p $(TEST_RESULTS_PATH)
@@ -122,22 +131,22 @@ container-ci-tooling-debug: container-ci-tooling
 
 .PHONY: lint-lua
 lint-lua: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); luacheck --no-default-config --config .luacheckrc .)'
+	$(CONTAINER_CI_TOOLING_RUN) luacheck --no-default-config --config .luacheckrc .
 
 .PHONY: lint-rust
 lint-rust: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo clippy --all-targets --all-features -- -D warnings)'
+	$(CONTAINER_CI_TOOLING_RUN) cargo clippy --all-targets --all-features -- -D warnings
 
 .PHONY: lint
 lint: lint-lua lint-rust
 
 .PHONY: format-lua
 format-lua: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); stylua .)'
+	$(CONTAINER_CI_TOOLING_RUN) stylua .
 
 .PHONY: format-rust
 format-rust:
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo fmt)'
+	$(CONTAINER_CI_TOOLING_RUN) cargo fmt
 
 .PHONY: format
 format: format-lua format-rust
@@ -146,18 +155,48 @@ format: format-lua format-rust
 test-unit: clean-test-results test-results container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) busted $(BUSTED_ARGS)
 	@if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
-		$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov-console $(MOUNT_PATH_IN_CONTAINER)/kong; luacov-console -s);' ;\
-		$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r html; mv luacov.report.out luacov.report.html);' ;\
+		$(CONTAINER_CI_TOOLING_RUN) luacov-console $(MOUNT_PATH_IN_CONTAINER)/kong; luacov-console -s ;\
+		$(CONTAINER_CI_TOOLING_RUN) luacov -r html; mv luacov.report.out luacov.report.html ;\
 		echo "Coverage report: file://$(PWD)/$(TEST_RESULTS_PATH)/luacov.report.html" ;\
 		$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
 	fi
+
+.PHONY: test-lua-busted
+test-lua-busted: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
+# @if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
+# 	$(CONTAINER_CI_TOOLING_RUN) luacov-console $(MOUNT_PATH_IN_CONTAINER)/kong; luacov-console -s ;\
+# 	$(CONTAINER_CI_TOOLING_RUN) luacov -r html; mv luacov.report.out luacov.report.html ;\
+# 	echo "Coverage report: file://$(PWD)/$(TEST_RESULTS_PATH)/luacov.report.html" ;\
+# 	$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
+# fi
 
 .PHONY: test-rust
 test-rust: test-rust-memory-valgrind
 
 .PHONY: test-rust-memory-valgrind
 test-rust-memory-valgrind: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo valgrind test)'
+	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
+
+.PHONY: test-busted-luajit
+test-busted-luajit: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
+
+# Rust build targets
+.PHONY: build
+build: $(RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(RELEASE_FOLDER)/libcel_lua.a
+
+$(RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
+	cargo build --release
+
+$(DEBUG_RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
+	cargo build
+
+.PHONY: lua-language-server-add-kong
+lua-language-server-add-kong: container-ci-tooling
+	-mkdir -p .luarocks
+	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/share/lua/5.1/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
+	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/openresty/lualib/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
 
 .PHONY: tooling-shell
 tooling-shell: DOCKER_RUN_FLAGS_TTY=--tty
@@ -168,12 +207,6 @@ tooling-shell: container-ci-tooling
 tooling-shell-root: DOCKER_USER=0
 tooling-shell-root: tooling-shell
 	$(CONTAINER_CI_TOOLING_RUN) bash
-
-.PHONY: lua-language-server-add-kong
-lua-language-server-add-kong: container-ci-tooling
-	-mkdir -p .luarocks
-	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/share/lua/5.1/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
-	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/openresty/lualib/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
 
 .PHONY: clean-test-results
 clean-test-results:
