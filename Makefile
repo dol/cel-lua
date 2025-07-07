@@ -90,7 +90,7 @@ RMDIR := $(RM) -rf
 TAG ?=
 
 .PHONY: all
-all: test
+all: lint check test
 
 $(ROCKSPEC_DEV_FILE): cel.rockspec
 	cp cel.rockspec $(ROCKSPEC_DEV_FILE)
@@ -113,9 +113,6 @@ $(ROCK_RELEASE_FILE): container-ci-tooling $(ROCKSPEC_RELEASE_FILE) $(LIB_FILES)
 
 test-results:
 	mkdir -p $(TEST_RESULTS_PATH)
-
-.PHONY: test
-test: lint check test-unit
 
 .PHONY: pack
 pack: $(ROCK_RELEASE_FILE)
@@ -161,9 +158,9 @@ test-unit: clean-test-results test-results container-ci-tooling
 		$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
 	fi
 
-.PHONY: test-lua-busted
-test-lua-busted: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
+# .PHONY: test-lua-busted
+# test-lua-busted: container-ci-tooling
+# 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 # @if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
 # 	$(CONTAINER_CI_TOOLING_RUN) luacov-console $(MOUNT_PATH_IN_CONTAINER)/kong; luacov-console -s ;\
 # 	$(CONTAINER_CI_TOOLING_RUN) luacov -r html; mv luacov.report.out luacov.report.html ;\
@@ -171,10 +168,17 @@ test-lua-busted: container-ci-tooling
 # 	$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
 # fi
 
+.PHONY: test
+test: test-lua test-rust
+
+.PHONY: test-lua
+test-lua: test-busted-luajit
+
 .PHONY: test-rust
 test-rust: test-rust-memory-valgrind
 
 .PHONY: test-rust-memory-valgrind
+test-rust-memory-valgrind: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-rust-memory-valgrind: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
 
