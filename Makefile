@@ -25,8 +25,8 @@ _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 # - set username/UID to executor
 DOCKER_USER ?= $$(id -u)
 DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
-DOCKER_RUN_FLAGS_TTY ?=
-DOCKER_RUN_FLAGS ?= --rm --interactive $(DOCKER_RUN_FLAGS_TTY) $(DOCKER_USER_OPT)
+DOCKER_RUN_ADDITIONAL_FLAGS ?=
+DOCKER_RUN_FLAGS ?= --rm --interactive $(DOCKER_RUN_ADDITIONAL_FLAGS) $(DOCKER_USER_OPT)
 
 MOUNT_PATH_IN_CONTAINER := /workspace
 
@@ -162,7 +162,6 @@ test-unit: clean-test-results test-results container-ci-tooling
 	fi
 
 .PHONY: test-lua-busted
-test-lua-busted: DOCKER_RUN_FLAGS_TTY=--tty
 test-lua-busted: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 # @if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
@@ -180,6 +179,7 @@ test-rust-memory-valgrind: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
 
 .PHONY: test-busted-luajit
+test-busted-luajit: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-busted-luajit: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 
@@ -200,7 +200,7 @@ lua-language-server-add-kong: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/openresty/lualib/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
 
 .PHONY: tooling-shell
-tooling-shell: DOCKER_RUN_FLAGS_TTY=--tty
+tooling-shell: DOCKER_RUN_ADDITIONAL_FLAGS=--tty
 tooling-shell: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) bash
 

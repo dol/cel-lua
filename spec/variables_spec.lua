@@ -56,7 +56,7 @@ describe("CEL Variables and Context", function()
     end)
 
     it("should handle nil variables", function()
-      local result, err = test_helper.eval_expression(cel, "empty", { empty = nil })
+      local result, err = test_helper.eval_expression(cel, "empty", { empty = test_helper.NULL })
       assert.is_nil(err)
       assert.is_nil(result)
     end)

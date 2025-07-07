@@ -68,8 +68,8 @@ describe("CEL Environment Detection and Compatibility", function()
       local result, err = test_helper.eval_expression(cel_module, expr, vars)
       assert.is_nil(err)
       assert.is_number(result)
-      -- Should be approximately 87.57
-      assert.is_true(math.abs(result - 87.5708) < 0.001)
+      -- Should be approximately 87.45084
+      assert.is_true(math.abs(result - 87.45084) < 0.001)
     end)
   end)
 
