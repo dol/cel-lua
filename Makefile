@@ -152,9 +152,21 @@ test-unit: clean-test-results test-results container-ci-tooling
 		$(CONTAINER_CI_TOOLING_RUN) sh -c "(cd $(MOUNT_PATH_IN_CONTAINER)/$(TEST_RESULTS_PATH); luacov -r lcov; sed -e 's|/kong-plugin/||' -e 's/^\(DA:[0-9]\+,[0-9]\+\),[^,]*/\1/' luacov.report.out > lcov.info)" ;\
 	fi
 
+.PHONY: test-rust
+test-rust: test-rust-memory-valgrind
+
+.PHONY: test-rust-memory-valgrind
+test-rust-memory-valgrind: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c '(cd $(MOUNT_PATH_IN_CONTAINER); cargo valgrind test)'
+
 .PHONY: tooling-shell
 tooling-shell: DOCKER_RUN_FLAGS_TTY=--tty
 tooling-shell: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) bash
+
+.PHONY: tooling-shell-root
+tooling-shell-root: DOCKER_USER=0
+tooling-shell-root: tooling-shell
 	$(CONTAINER_CI_TOOLING_RUN) bash
 
 .PHONY: lua-language-server-add-kong

@@ -222,8 +222,8 @@ mod tests {
             let ptr = store_string_in_pool(test_string);
             assert!(!ptr.is_null());
 
-            // Free the string
-            cel_string_free(ptr);
+            // Free the string using the proper function
+            release_string_from_pool(ptr);
 
             // Calling free on null should be safe
             cel_string_free(ptr::null());
@@ -557,6 +557,9 @@ mod tests {
 
             assert_eq!(result_value.value_type, CelValueType::Int);
             assert_eq!(result_value.data.int_val, 13); // Length of "Hello, World!"
+
+            // Clean up string pool memory
+            release_string_from_pool(string_ptr);
 
             program_free(program);
             context_free(context);
@@ -914,9 +917,11 @@ mod tests {
             let ptr = store_string_in_pool(test_str);
             assert!(!ptr.is_null());
 
-            // Free and ensure no double-free issues
-            cel_string_free(ptr);
-            cel_string_free(ptr); // Second free should be safe
+            // Free once using the proper function
+            release_string_from_pool(ptr);
+
+            // Test that freeing null pointer is safe
+            cel_string_free(ptr::null());
         }
     }
 

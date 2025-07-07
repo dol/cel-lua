@@ -5,10 +5,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 COPY hack/tooling/test-dependencies-0.1.0-0.rockspec /test-dependencies-0.1.0-0.rockspec
 
 ENV RUSTUP_HOME="/rust/rustup"
+ENV PATH="/rust/cargo/bin:${PATH}"
 
 RUN curl https://sh.rustup.rs -sSf | CARGO_HOME=/rust/cargo sh -s -- -y \
   && apt-get update \
-  && apt-get install --no-install-recommends -y git=1:2.* cpanminus=1.* \
+  && apt-get install --no-install-recommends -y git=1:2.* cpanminus=1.* valgrind=1:3.* \
+  && cargo install --root /rust/cargo cargo-valgrind \
   && cpanm --notest Test::Nginx \
   # Install stylua
   && curl -sSf -L "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.1.0/stylua-linux-x86_64.zip" -o /tmp/stylua-linux-x86_64.zip \
@@ -26,5 +28,3 @@ RUN curl https://sh.rustup.rs -sSf | CARGO_HOME=/rust/cargo sh -s -- -y \
   && rm -rf /var/lib/apt/lists/*
 
 # COPY hack/tooling/busted /usr/local/bin/busted
-
-ENV PATH="/rust/cargo/bin:${PATH}"

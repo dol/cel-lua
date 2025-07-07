@@ -454,9 +454,7 @@ mod tests {
         assert!(json_value.is_string());
         assert_eq!(json_value.as_str().unwrap(), test_string);
 
-        unsafe {
-            crate::cel_string_free(string_ptr);
-        }
+        crate::release_string_from_pool(string_ptr);
     }
 
     #[test]

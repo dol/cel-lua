@@ -451,6 +451,7 @@ fn copy_error_to_buffer(error: &str, errbuf: *mut u8, errbuf_len: &mut usize) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::release_string_from_pool;
     use super::*;
 
     #[test]
@@ -976,6 +977,13 @@ mod tests {
                     // These should fail as they're not yet supported
                     assert!(result.is_err(), "List and Map conversions should fail");
                 }
+                cel_interpreter::Value::String(_) => {
+                    assert!(result.is_ok(), "String conversion should succeed");
+                    // Free the string memory
+                    unsafe {
+                        release_string_from_pool(c_value.data.string_val.ptr);
+                    }
+                }
                 _ => {
                     assert!(result.is_ok(), "Conversion should succeed for basic types");
                 }
@@ -1011,6 +1019,9 @@ mod tests {
                 assert_eq!(c_value.data.string_val.len, test_str.len());
                 // Note: We can't easily verify the string content without risking memory issues
                 // In a real implementation, you'd want more thorough memory testing
+
+                // Free the string memory
+                release_string_from_pool(c_value.data.string_val.ptr);
             }
         }
     }
