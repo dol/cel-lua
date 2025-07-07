@@ -64,7 +64,7 @@ function _M:compile(expression)
   local ok = clib.program_compile(self.program, expression, errbuf, errbuf_len)
 
   if not ok then
-    return nil, ffi_string(errbuf, errbuf_len[0])
+    return false, ffi_string(errbuf, errbuf_len[0])
   end
 
   self.compiled = true

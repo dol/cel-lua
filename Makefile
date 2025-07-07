@@ -162,6 +162,7 @@ test-unit: clean-test-results test-results container-ci-tooling
 	fi
 
 .PHONY: test-lua-busted
+test-lua-busted: DOCKER_RUN_FLAGS_TTY=--tty
 test-lua-busted: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 # @if [ -f $(TEST_RESULTS_PATH)/luacov.stats.out ]; then \
@@ -180,7 +181,7 @@ test-rust-memory-valgrind: container-ci-tooling
 
 .PHONY: test-busted-luajit
 test-busted-luajit: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
+	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 
 # Rust build targets
 .PHONY: build

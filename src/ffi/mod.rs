@@ -64,7 +64,7 @@ pub struct CelValue {
 /// Note: With the new memory management approach, this is a no-op
 /// Individual strings are freed when release_string_from_pool is called
 #[no_mangle]
-pub extern "C" fn cel_clear_string_pool() {
+pub extern "C" fn cel_string_pool_clear() {
     // No-op with the new approach - memory is managed per-string
 }
 
@@ -133,7 +133,7 @@ pub unsafe extern "C" fn cel_string_free(ptr: *const u8) {
 
 #[cfg(test)]
 pub fn test_cleanup() {
-    cel_clear_string_pool();
+    cel_string_pool_clear();
 }
 
 #[cfg(test)]
@@ -269,7 +269,7 @@ mod tests {
         release_string_from_pool(ptr2);
 
         // Clear the pool (no-op with new approach)
-        cel_clear_string_pool();
+        cel_string_pool_clear();
 
         // Pool size is always 0 with new approach
         assert_eq!(cel_string_pool_size(), 0);
@@ -628,7 +628,7 @@ mod tests {
         }
 
         // Clear function is a no-op now
-        cel_clear_string_pool();
+        cel_string_pool_clear();
 
         // Pool size is always 0 with new approach
         let final_size = cel_string_pool_size();
@@ -701,7 +701,7 @@ mod tests {
     } // This test should run last to attempt cleanup of global resources
     #[test]
     fn zzz_final_test_cleanup() {
-        cel_clear_string_pool();
+        cel_string_pool_clear();
 
         // With the new approach, there's no global state to shrink
         // This is a no-op test now
