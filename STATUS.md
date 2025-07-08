@@ -63,7 +63,7 @@ make example
 
 ## 🔧 Architecture
 
-```
+```plain
 ┌─────────────────┐
 │   Lua Frontend  │ (cel.*)
 └─────────────────┘
@@ -79,6 +79,8 @@ make example
 
 ## 🔧 Recent Fixes
 
-✅ **Makefile Build Paths**: Fixed CARGO_BUILD_TARGET variable issue in Makefile. The build system now correctly uses `target/release` and `target/debug` paths instead of `target//release` and `target//debug`.
+✅ **Makefile Build Paths**: Fixed CARGO_BUILD_TARGET variable issue in Makefile.
+The build system now correctly uses `target/release` and `target/debug` paths instead
+of `target//release` and `target//debug`.
 
 The project successfully creates a working CEL expression evaluator for Lua environments!

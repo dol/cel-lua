@@ -90,7 +90,7 @@ RMDIR := $(RM) -rf
 TAG ?=
 
 .PHONY: all
-all: lint check test
+all: lint format test
 
 $(ROCKSPEC_DEV_FILE): cel.rockspec
 	cp cel.rockspec $(ROCKSPEC_DEV_FILE)
@@ -126,6 +126,9 @@ container-ci-tooling-debug: BUILDKIT_PROGRESS = 'plain'
 container-ci-tooling-debug: DOCKER_NO_CACHE = '--no-cache'
 container-ci-tooling-debug: container-ci-tooling
 
+.PHONY: lint
+lint: lint-lua lint-rust
+
 .PHONY: lint-lua
 lint-lua: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) luacheck --no-default-config --config .luacheckrc .
@@ -134,8 +137,8 @@ lint-lua: container-ci-tooling
 lint-rust: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo clippy --all-targets --all-features -- -D warnings
 
-.PHONY: lint
-lint: lint-lua lint-rust
+.PHONY: format
+format: format-lua format-rust
 
 .PHONY: format-lua
 format-lua: container-ci-tooling
@@ -144,9 +147,6 @@ format-lua: container-ci-tooling
 .PHONY: format-rust
 format-rust:
 	$(CONTAINER_CI_TOOLING_RUN) cargo fmt
-
-.PHONY: format
-format: format-lua format-rust
 
 .PHONY: test-unit
 test-unit: clean-test-results test-results container-ci-tooling
@@ -172,7 +172,7 @@ test-unit: clean-test-results test-results container-ci-tooling
 test: test-lua test-rust
 
 .PHONY: test-lua
-test-lua: test-busted-luajit
+test-lua: test-busted-luajit test-busted-resty
 
 .PHONY: test-rust
 test-rust: test-rust-memory-valgrind
@@ -186,6 +186,11 @@ test-rust-memory-valgrind: container-ci-tooling
 test-busted-luajit: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-busted-luajit: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
+
+.PHONY: test-busted-resty
+test-busted-resty: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-busted-resty: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-resty $(BUSTED_ARGS)
 
 # Rust build targets
 .PHONY: build
@@ -212,6 +217,10 @@ tooling-shell: container-ci-tooling
 tooling-shell-root: DOCKER_USER=0
 tooling-shell-root: tooling-shell
 	$(CONTAINER_CI_TOOLING_RUN) bash
+
+.PHONY: pre-commit
+pre-commit:
+	pre-commit run --all-files
 
 .PHONY: clean-test-results
 clean-test-results:

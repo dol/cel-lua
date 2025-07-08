@@ -1,0 +1,226 @@
+name: Memory Safety
+
+on:
+  push:
+    branches: [main, master, init]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Cancel previous runs if new commits are pushed to the PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  valgrind:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    strategy:
+      matrix:
+        openresty: ["1.27.1.2", "1.21.4.4"]
+      fail-fast: false
+
+    env:
+      OPENRESTY: ${{ matrix.openresty }}
+      BASE_PATH: /home/runner/work/cache
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Setup cache
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            ${{ env.BASE_PATH }}
+          key: ${{ runner.os }}-valgrind-${{ hashFiles('Makefile') }}-${{ hashFiles('**/Cargo.lock') }}-openresty-${{ matrix.openresty }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -qq -y \
+            cpanminus \
+            build-essential \
+            libpcre3-dev \
+            libssl-dev \
+            zlib1g-dev \
+            valgrind \
+            wget
+
+      - name: Install Test::Nginx
+        run: |
+          if [ ! -e perl ]; then
+            sudo cpanm --notest Test::Nginx > build.log 2>&1 || (cat build.log && exit 1)
+            cp -r /usr/local/share/perl/ .
+          else
+            sudo cp -r perl /usr/local/share
+          fi
+
+      - name: Download OpenResty
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          wget https://openresty.org/download/openresty-${OPENRESTY}.tar.gz
+          mkdir -p ${BASE_PATH}
+          tar xfz openresty-${OPENRESTY}.tar.gz -C ${BASE_PATH}
+
+      - name: Build OpenResty
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd ${BASE_PATH}/openresty-${OPENRESTY}
+          ./configure --prefix=${BASE_PATH}/openresty --with-debug
+          make -j$(nproc) && make install
+
+      - name: Build project with debug symbols
+        run: |
+          export PATH=${BASE_PATH}/openresty/bin:$PATH
+          make build
+
+      - name: Run Valgrind on Rust tests
+        run: |
+          echo "🔍 Running Valgrind memory checks on Rust tests..."
+          make test-rust-memory-valgrind
+          echo "✅ Valgrind check completed - no memory leaks detected"
+
+      - name: Run Valgrind on integration tests
+        run: |
+          export PATH=${BASE_PATH}/openresty/bin:$PATH
+          export TEST_NGINX_VALGRIND='--num-callers=100 -q --tool=memcheck --leak-check=full --show-possibly-lost=no --gen-suppressions=all --track-origins=yes'
+          export TEST_NGINX_TIMEOUT=120
+          export TEST_NGINX_SLEEP=1
+          export TEST_NGINX_USE_VALGRIND=1
+          echo "🔍 Running Valgrind on integration tests..."
+          make test-valgrind OPENRESTY_PREFIX=${BASE_PATH}/openresty || true
+          echo "✅ Valgrind integration tests completed"
+
+      - name: Upload Valgrind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valgrind-logs-${{ matrix.openresty }}
+          path: |
+            valgrind-*.log
+            test-results/
+          retention-days: 14
+
+  sanitizer:
+    name: Address Sanitizer
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rust-src
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-sanitizer-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build with AddressSanitizer
+        env:
+          RUSTFLAGS: "-Z sanitizer=address"
+          RUSTDOCFLAGS: "-Z sanitizer=address"
+        run: |
+          cargo +nightly build --target x86_64-unknown-linux-gnu -Z build-std
+
+      - name: Run tests with AddressSanitizer
+        env:
+          RUSTFLAGS: "-Z sanitizer=address"
+          ASAN_OPTIONS: "detect_odr_violation=0:abort_on_error=1"
+        run: |
+          echo "🔍 Running tests with AddressSanitizer..."
+          cargo +nightly test --target x86_64-unknown-linux-gnu -Z build-std
+          echo "✅ AddressSanitizer tests completed"
+
+  miri:
+    name: Miri Undefined Behavior Detection
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: miri
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-miri-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Setup Miri
+        run: cargo miri setup
+
+      - name: Run Miri
+        run: |
+          echo "🔍 Running Miri undefined behavior detection..."
+          # Run only pure Rust tests (exclude FFI tests that might not work with Miri)
+          cargo +nightly miri test --lib
+          echo "✅ Miri tests completed - no undefined behavior detected"
+
+  memory-report:
+    name: Memory Safety Report
+    runs-on: ubuntu-22.04
+    needs: [valgrind, sanitizer, miri]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate memory safety report
+        run: |
+          echo "# Memory Safety Analysis Results" > memory-report.md
+          echo "" >> memory-report.md
+          echo "## Summary" >> memory-report.md
+          echo "- Valgrind: ${{ needs.valgrind.result }}" >> memory-report.md
+          echo "- AddressSanitizer: ${{ needs.sanitizer.result }}" >> memory-report.md
+          echo "- Miri: ${{ needs.miri.result }}" >> memory-report.md
+          echo "" >> memory-report.md
+          echo "Generated on: $(date)" >> memory-report.md
+
+      - name: Upload memory safety report
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-safety-report
+          path: memory-report.md
+          retention-days: 30

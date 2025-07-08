@@ -1,0 +1,250 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.2.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${VERSION}"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION (expected: vX.Y.Z)"
+            exit 1
+          fi
+          echo "✅ Version format is valid: $VERSION"
+
+      - name: Check if tag exists (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG already exists"
+            exit 1
+          fi
+          echo "✅ Tag $TAG does not exist yet"
+
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-22.04
+    needs: validate
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        openresty: ["1.27.1.2", "1.25.3.2", "1.21.4.4"]
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          echo "🏗️ Building release for ${{ matrix.target }}..."
+          cargo build --release --target ${{ matrix.target }}
+          echo "✅ Build completed for ${{ matrix.target }}"
+
+      - name: Package release artifacts
+        run: |
+          TARGET="${{ matrix.target }}"
+          OPENRESTY="${{ matrix.openresty }}"
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          mkdir -p dist
+
+          # Create package directory
+          PACKAGE_NAME="cel-lua-${VERSION}-${TARGET}-openresty-${OPENRESTY}"
+          PACKAGE_DIR="dist/${PACKAGE_NAME}"
+          mkdir -p "${PACKAGE_DIR}"
+
+          # Copy binary
+          cp "target/${TARGET}/release/libcel_lua.so" "${PACKAGE_DIR}/"
+
+          # Copy Lua library files
+          cp -r lib/ "${PACKAGE_DIR}/"
+
+          # Copy documentation
+          cp README.md LICENSE CHANGELOG.md "${PACKAGE_DIR}/"
+
+          # Create tarball
+          cd dist
+          tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+          cd ..
+
+          echo "📦 Created package: ${PACKAGE_NAME}.tar.gz"
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}-openresty-${{ matrix.openresty }}
+          path: dist/*.tar.gz
+          retention-days: 30
+
+  test-release:
+    name: Test Release Artifacts
+    runs-on: ubuntu-22.04
+    needs: [validate, build]
+    timeout-minutes: 20
+
+    strategy:
+      matrix:
+        openresty: ["1.27.1.2", "1.21.4.4"]
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-x86_64-unknown-linux-gnu-openresty-${{ matrix.openresty }}
+          path: dist
+
+      - name: Test release package
+        run: |
+          cd dist
+          PACKAGE=$(ls *.tar.gz | head -n1)
+          echo "🧪 Testing release package: $PACKAGE"
+
+          # Extract package
+          tar -xzf "$PACKAGE"
+          PACKAGE_DIR=$(basename "$PACKAGE" .tar.gz)
+
+          # Verify files exist
+          test -f "${PACKAGE_DIR}/libcel_lua.so" || (echo "❌ Missing libcel_lua.so" && exit 1)
+          test -d "${PACKAGE_DIR}/lib" || (echo "❌ Missing lib directory" && exit 1)
+          test -f "${PACKAGE_DIR}/README.md" || (echo "❌ Missing README.md" && exit 1)
+
+          echo "✅ Release package verification completed"
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: [validate, build, test-release]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate release notes
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          echo "# Release $VERSION" > release-notes.md
+          echo "" >> release-notes.md
+
+          # Try to get changelog for this version
+          if [ -f CHANGELOG.md ]; then
+            echo "## Changes" >> release-notes.md
+            # Extract changes for this version from CHANGELOG.md
+            awk '/^## \[?'${VERSION#v}'\]?/ {flag=1; next} /^## / {flag=0} flag' CHANGELOG.md >> release-notes.md || true
+          fi
+
+          echo "" >> release-notes.md
+          echo "## Artifacts" >> release-notes.md
+          echo "This release includes binaries for:" >> release-notes.md
+          echo "- x86_64 Linux" >> release-notes.md
+          echo "- aarch64 Linux" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "Compatible with OpenResty versions: 1.27.1.2, 1.25.3.2, 1.21.4.4" >> release-notes.md
+
+      - name: Create or update tag (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ needs.validate.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: Release ${{ needs.validate.outputs.version }}
+          body_path: release-notes.md
+          files: dist/*.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Announce release
+        run: |
+          echo "🎉 Release ${{ needs.validate.outputs.version }} created successfully!"
+          echo "📦 Artifacts uploaded to GitHub Releases"
+          echo "🔗 Release URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.validate.outputs.tag }}"
