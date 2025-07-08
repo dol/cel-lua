@@ -18,63 +18,47 @@ env:
 jobs:
   format-lint:
     name: Format & Lint
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
-      - name: Setup cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-format-lint-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('Makefile') }}
-          restore-keys: |
-            ${{ runner.os }}-format-lint-
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build CI tooling container
-        run: |
-          echo "🔨 Building CI tooling container for Lua tools..."
-          make container-ci-tooling
+        uses: docker/build-push-action@v6
+        with:
+          file: hack/tooling/Dockerfile
+          context: .
+          push: false
+          tags: localhost/cel-lua-test-tooling:0.1.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Check Rust formatting
         run: |
           echo "🔍 Checking Rust code formatting..."
-          cargo fmt -- --check
+          make format-rust
           echo "✅ Rust code is properly formatted"
 
       - name: Check Lua formatting
         run: |
           echo "🔍 Checking Lua code formatting with stylua..."
-          # Store current state
-          git stash push -m "pre-format-check" --include-untracked || true
-          # Run formatter
           make format-lua
-          # Check if any files were changed
-          if ! git diff --exit-code; then
-            echo "❌ Lua code is not properly formatted. Run 'make format-lua' to fix."
-            echo "Changes that would be made:"
-            git diff
-            exit 1
-          fi
           echo "✅ Lua code is properly formatted"
+
+      - uses: tj-actions/verify-changed-files@a1c6acee9df209257a246f2cc6ae8cb6581c1edf # v20
+        id: verify-changed-files
+        with:
+          fail-if-changed: "true"
 
       - name: Run Rust linting
         run: |
           echo "🔍 Running Rust linting with Clippy..."
-          cargo clippy --all-targets --all-features -- -D warnings
+          make lint-rust
           echo "✅ No Rust clippy warnings found"
 
       - name: Run Lua linting
@@ -82,14 +66,3 @@ jobs:
           echo "🔍 Running Lua linting with luacheck..."
           make lint-lua
           echo "✅ No Lua luacheck warnings found"
-
-      - name: Verify no files were modified
-        run: |
-          echo "🔍 Verifying no files were modified during checks..."
-          if ! git diff --exit-code; then
-            echo "❌ Files were modified during format/lint checks"
-            echo "Modified files:"
-            git status --porcelain
-            exit 1
-          fi
-          echo "✅ No files were modified during checks"
