@@ -1,4 +1,5 @@
-FROM registry.hub.docker.com/openresty/openresty:1.27.1.2-2-noble
+ARG OPENRESTY_VERSION="1.27.1.2-2-noble"
+FROM registry.hub.docker.com/openresty/openresty:${OPENRESTY_VERSION}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -21,9 +22,17 @@ RUN curl https://sh.rustup.rs -sSf | CARGO_HOME=/rust/cargo sh -s -- -y \
   && curl -sSf -L "https://github.com/EmmyLua/EmmyLuaDebugger/releases/download/1.8.6/linux-x64.zip" -o /tmp/emmylua-debugger.zip \
   && unzip /tmp/emmylua-debugger.zip -d /usr/local/lib/lua/5.1 \
   && rm -f /tmp/emmylua-debugger.zip \
+  # Install LuaRocks
+  && curl -sSf -L "https://luarocks.github.io/luarocks/releases/luarocks-3.12.2.tar.gz" -o /tmp/luarocks.tar.gz \
+  && tar -xzf /tmp/luarocks.tar.gz -C /tmp \
+  && cd /tmp/luarocks-3.12.2 \
+  && ./configure --with-lua=/usr/local/openresty/luajit \
+  && make \
+  && make install \
+  && cd - \
+  && rm -rf /tmp/luarocks.tar.gz /tmp/luarocks-3.12.2 \
   # Install LuaRocks and dependencies
   && luarocks build /test-dependencies-0.1.0-0.rockspec --only-deps \
-  # && luarocks build /test-dependencies-0.1.0-0.rockspec --only-deps OPENSSL_DIR=/usr/local/kong CRYPTO_DIR=/usr/local/kong \
   # Clean up apt cache
   && rm -rf /var/lib/apt/lists/*
 
