@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
 
     env:
-      CONTAINER_CI_TOOLING_IMAGE_NAME: localhost/cel-lua-test-tooling:${{ matrix.openresty }}
+      CONTAINER_CI_TOOLING_IMAGE_TAG: ${{ matrix.openresty }}
       CONTAINER_CI_TOOLING_OPENRESTY_VERSION: ${{ matrix.openresty }}
 
     steps:
@@ -55,7 +55,8 @@ jobs:
       - name: Run Lua tests
         run: |
           make test-busted-luajit \
-            CONTAINER_CI_TOOLING_IMAGE_NAME=${CONTAINER_CI_TOOLING_IMAGE_NAME} \
+            CONTAINER_CI_TOOLING_IMAGE_TAG=${CONTAINER_CI_TOOLING_IMAGE_TAG} \
             CONTAINER_CI_TOOLING_OPENRESTY_VERSION=${CONTAINER_CI_TOOLING_OPENRESTY_VERSION} \
-            CONTAINER_CI_TOOLING_BUILD_ADDITIONAL_FLAGS="--cache-from=type=gha --cache-to=type=gha,mode=max"
+            CONTAINER_CI_TOOLING_BUILD_ADDITIONAL_FLAGS="--cache-from=type=gha --cache-to=type=gha,mode=max" \
+            DOCKER_RUN_ADDITIONAL_FLAGS="-e TERM=xterm-256color"
           echo "✅ Lua tests completed successfully"

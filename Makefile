@@ -60,16 +60,16 @@ ifneq ($(BUSTED_EMMY_DEBUGGER), false)
 endif
 
 CONTAINER_CI_TOOLING_OPENRESTY_VERSION ?=
-
 CONTAINER_CI_TOOLING_IMAGE_PATH := hack/tooling
-
-CONTAINER_CI_TOOLING_IMAGE_NAME := localhost/cel-lua-test-tooling:0.1.0
-
+CONTAINER_CI_TOOLING_IMAGE_TAG ?= 0.1.0
+CONTAINER_CI_TOOLING_IMAGE_NAME := localhost/cel-lua-test-tooling:$(CONTAINER_CI_TOOLING_IMAGE_TAG)
+CONTAINER_CI_TOOLING_IMAGE_METADATA_FILE := $(CONTAINER_CI_TOOLING_IMAGE_PATH)/docker.build.metadata.json
 CONTAINER_CI_TOOLING_BUILD_ADDITIONAL_FLAGS ?=
 
 CONTAINER_CI_TOOLING_BUILD ?= DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) $(DOCKER) build \
 	$(if $(CONTAINER_CI_TOOLING_OPENRESTY_VERSION),--build-arg OPENRESTY_VERSION='$(CONTAINER_CI_TOOLING_OPENRESTY_VERSION)',) \
 	-f '$(CONTAINER_CI_TOOLING_IMAGE_PATH)/Dockerfile' \
+	--metadata-file '$(CONTAINER_CI_TOOLING_IMAGE_METADATA_FILE)' \
 	$(DOCKER_NO_CACHE) \
 	$(CONTAINER_CI_TOOLING_BUILD_ADDITIONAL_FLAGS) \
 	-t '$(CONTAINER_CI_TOOLING_IMAGE_NAME)' \
@@ -123,9 +123,12 @@ test-results:
 .PHONY: pack
 pack: $(ROCK_RELEASE_FILE)
 
-.PHONY: container-ci-tooling
-container-ci-tooling:
+# If the image metadata file is not present, build the image
+$(CONTAINER_CI_TOOLING_IMAGE_METADATA_FILE): hack/tooling/test-dependencies-0.1.0-0.rockspec hack/tooling/Dockerfile
 	$(CONTAINER_CI_TOOLING_BUILD)
+
+.PHONY: container-ci-tooling
+container-ci-tooling: $(CONTAINER_CI_TOOLING_IMAGE_METADATA_FILE)
 
 .PHONY: container-ci-tooling-debug
 container-ci-tooling-debug: BUILDKIT_PROGRESS = 'plain'
@@ -190,12 +193,15 @@ test-rust-memory-valgrind: container-ci-tooling
 
 .PHONY: test-busted-luajit
 test-busted-luajit: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
-test-busted-luajit: container-ci-tooling
+test-busted-luajit: build container-ci-tooling
+	echo "Running busted-luajit tests..."
+	echo DOCKER_USE_TTY=$(DOCKER_USE_TTY)
+	test -t 1 && echo "--tty" || echo ""
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 
 .PHONY: test-busted-resty
 test-busted-resty: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
-test-busted-resty: container-ci-tooling
+test-busted-resty: build container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-resty $(BUSTED_ARGS)
 
 # Rust build targets
@@ -247,6 +253,7 @@ clean-target:
 .PHONY: clean-container-ci-tooling
 clean-container-ci-tooling:
 	-$(DOCKER) rmi '$(CONTAINER_CI_TOOLING_IMAGE_NAME)'
+	-$(RM) $(CONTAINER_CI_TOOLING_IMAGE_METADATA_FILE)
 
 .PHONY: clean
 clean: clean-test-results

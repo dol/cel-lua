@@ -35,8 +35,6 @@ Thumbs.db
 
 
 # TODO
-# Custom patterns
-kong-license.json
 # servroot typically is the Kong working directory for tests
 servroot
 # exclude generated packed rocks
@@ -61,6 +59,7 @@ luacov.report.out
 /lua_modules/
 /.luarocks
 
+hack/tooling/docker.build.metadata.json
 /.docker/
 
 # Local folder for scratch files
