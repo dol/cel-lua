@@ -154,7 +154,7 @@ format-lua: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) stylua .
 
 .PHONY: format-rust
-format-rust:
+format-rust: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo fmt
 
 .PHONY: test-unit
