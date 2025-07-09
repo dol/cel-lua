@@ -2,7 +2,7 @@ name: Format & Lint
 
 on:
   push:
-    branches: [main, master, init]
+    branches: [main, master]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -40,6 +40,7 @@ jobs:
 
       - name: Check Rust formatting
         run: |
+          docker image ls
           echo "🔍 Checking Rust code formatting..."
           make format-rust
           echo "✅ Rust code is properly formatted"
