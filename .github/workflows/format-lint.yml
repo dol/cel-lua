@@ -2,7 +2,7 @@ name: Format & Lint
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, init]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -35,12 +35,16 @@ jobs:
           context: .
           push: false
           tags: localhost/cel-lua-test-tooling:0.1.0
+          outputs: type=docker
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Save docker build metadata
+        run: |
+          echo '${{ steps.build-ci-tooling.outputs.metadata }}' > hack/tooling/docker.build.metadata.json
+
       - name: Check Rust formatting
         run: |
-          docker image ls
           echo "🔍 Checking Rust code formatting..."
           make format-rust
           echo "✅ Rust code is properly formatted"
