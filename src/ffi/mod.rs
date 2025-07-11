@@ -85,7 +85,8 @@ pub unsafe fn c_str_to_string(ptr: *const c_char) -> Result<String, std::str::Ut
 }
 
 // String memory management functions - simplified without global state
-#[must_use] pub fn store_string_in_pool(s: &str) -> *const u8 {
+#[must_use]
+pub fn store_string_in_pool(s: &str) -> *const u8 {
     // Create a CString and convert it to a raw pointer
     // This ensures null-termination and proper memory layout
     let c_string = std::ffi::CString::new(s).unwrap();

@@ -11,7 +11,8 @@ pub struct Program {
 }
 
 impl Program {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             program: None,
             variables: Vec::new(),
@@ -45,7 +46,8 @@ impl Program {
         program.execute(&cel_ctx).map_err(|e| format!("Execution error: {e}"))
     }
 
-    #[must_use] pub fn get_variables(&self) -> &[String] {
+    #[must_use]
+    pub fn get_variables(&self) -> &[String] {
         &self.variables
     }
 }

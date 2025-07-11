@@ -946,7 +946,9 @@ mod tests {
 
                 let cel_value = CelValue {
                     value_type: CelValueType::Int,
-                    data: CelValueData { int_val: i64::from(i) },
+                    data: CelValueData {
+                        int_val: i64::from(i),
+                    },
                 };
 
                 assert!(context_add_variable(

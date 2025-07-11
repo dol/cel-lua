@@ -9,7 +9,8 @@ pub struct Context {
 }
 
 impl Context {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
         }
@@ -19,7 +20,8 @@ impl Context {
         self.variables.insert(name, value);
     }
 
-    #[must_use] pub fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
+    #[must_use]
+    pub fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
         &self.variables
     }
 
