@@ -946,7 +946,7 @@ mod tests {
 
                 let cel_value = CelValue {
                     value_type: CelValueType::Int,
-                    data: CelValueData { int_val: i as i64 },
+                    data: CelValueData { int_val: i64::from(i) },
                 };
 
                 assert!(context_add_variable(
@@ -983,7 +983,7 @@ mod tests {
                 ));
 
                 assert_eq!(result_value.value_type, CelValueType::Int);
-                assert_eq!(result_value.data.int_val, (i as i64) * 2);
+                assert_eq!(result_value.data.int_val, i64::from(i) * 2);
 
                 program_free(program);
                 context_free(context);

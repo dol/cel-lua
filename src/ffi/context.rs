@@ -9,7 +9,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
         }
@@ -19,7 +19,7 @@ impl Context {
         self.variables.insert(name, value);
     }
 
-    pub fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
+    #[must_use] pub fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
         &self.variables
     }
 
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn context_free(context: *mut Context) {
 /// The caller must ensure that:
 /// - `context` is a valid mutable reference to a Context
 /// - `name` is a valid null-terminated C string
-/// - `value` is a valid reference to a CelValue
+/// - `value` is a valid reference to a `CelValue`
 /// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
 /// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]

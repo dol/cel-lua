@@ -11,7 +11,7 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             program: None,
             variables: Vec::new(),
@@ -45,7 +45,7 @@ impl Program {
         program.execute(&cel_ctx).map_err(|e| format!("Execution error: {e}"))
     }
 
-    pub fn get_variables(&self) -> &[String] {
+    #[must_use] pub fn get_variables(&self) -> &[String] {
         &self.variables
     }
 }
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn program_compile(
 /// The caller must ensure that:
 /// - `program` is a valid reference to a Program with a compiled expression
 /// - `context` is a valid reference to a Context
-/// - `result` is a valid pointer to a CelValue struct that can be written to
+/// - `result` is a valid pointer to a `CelValue` struct that can be written to
 /// - `errbuf` is either null or points to a valid buffer of at least `*errbuf_len` bytes
 /// - `errbuf_len` is a valid mutable reference to the buffer size
 #[no_mangle]
@@ -832,7 +832,7 @@ mod tests {
             if !expected_vars.is_empty() {
                 let mut found_any = false;
                 for expected in &expected_vars {
-                    if actual_vars.contains(&expected.to_string()) {
+                    if actual_vars.contains(&(*expected).to_string()) {
                         found_any = true;
                     }
                 }
@@ -961,7 +961,7 @@ mod tests {
             cel_interpreter::Value::Float(0.0),
             cel_interpreter::Value::Float(-1.5),
             cel_interpreter::Value::String(std::sync::Arc::new("test string".to_string())),
-            cel_interpreter::Value::String(std::sync::Arc::new("".to_string())), // Empty string
+            cel_interpreter::Value::String(std::sync::Arc::new(String::new())), // Empty string
         ];
 
         for cel_value in test_cases {

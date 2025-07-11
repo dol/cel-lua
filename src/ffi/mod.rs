@@ -62,7 +62,7 @@ pub struct CelValue {
 
 /// Clear all strings from the pool (useful for cleanup)
 /// Note: With the new memory management approach, this is a no-op
-/// Individual strings are freed when release_string_from_pool is called
+/// Individual strings are freed when `release_string_from_pool` is called
 #[no_mangle]
 pub extern "C" fn cel_string_pool_clear() {
     // No-op with the new approach - memory is managed per-string
@@ -85,7 +85,7 @@ pub unsafe fn c_str_to_string(ptr: *const c_char) -> Result<String, std::str::Ut
 }
 
 // String memory management functions - simplified without global state
-pub fn store_string_in_pool(s: &str) -> *const u8 {
+#[must_use] pub fn store_string_in_pool(s: &str) -> *const u8 {
     // Create a CString and convert it to a raw pointer
     // This ensures null-termination and proper memory layout
     let c_string = std::ffi::CString::new(s).unwrap();
@@ -106,11 +106,11 @@ pub fn release_string_from_pool(ptr: *const u8) {
             // returned by store_string_in_pool. We cannot validate the pointer
             // without additional bookkeeping, so we trust the caller.
             // If an invalid pointer is passed, this will cause undefined behavior.
-            let c_str = std::ffi::CStr::from_ptr(ptr as *const i8);
+            let c_str = std::ffi::CStr::from_ptr(ptr.cast::<i8>());
             let len = c_str.to_bytes_with_nul().len();
 
             // Reconstruct the Box and let it drop to free the memory
-            let slice_ptr = std::ptr::slice_from_raw_parts_mut(ptr as *mut u8, len);
+            let slice_ptr = std::ptr::slice_from_raw_parts_mut(ptr.cast_mut(), len);
             let _boxed_slice = Box::from_raw(slice_ptr);
             // Box automatically drops and frees the memory
         }
