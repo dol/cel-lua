@@ -44,6 +44,11 @@ jobs:
         run: |
           echo '${{ steps.build-ci-tooling.outputs.metadata }}' > hack/tooling/docker.build.metadata.json
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: .cargo
+
       - name: Check Rust formatting
         run: |
           echo "🔍 Checking Rust code formatting..."
