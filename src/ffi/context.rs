@@ -109,10 +109,11 @@ fn cel_value_to_json(value: &CelValue) -> Result<serde_json::Value, String> {
         }))),
         CelValueType::Double => {
             let float_val = unsafe { value.data.double_val };
-            match serde_json::Number::from_f64(float_val) {
-                Some(num) => Ok(serde_json::Value::Number(num)),
-                None => Err(format!("Invalid float value: {float_val}")),
-            }
+
+            serde_json::Number::from_f64(float_val).map_or_else(
+                || Err(format!("Invalid float value: {float_val}")),
+                |num| Ok(serde_json::Value::Number(num)),
+            )
         }
         CelValueType::String => {
             let string_val = unsafe { &*value.data.string_val };

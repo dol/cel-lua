@@ -89,7 +89,7 @@ mod tests {
             let result = program_validate(
                 expression.as_ptr(),
                 ptr::null_mut(),
-                &mut variables_len,
+                &raw mut variables_len,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -110,7 +110,7 @@ mod tests {
             let result = program_validate(
                 expression.as_ptr(),
                 ptr::null_mut(),
-                &mut variables_len,
+                &raw mut variables_len,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -282,7 +282,7 @@ mod tests {
             let exec_result = program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -317,7 +317,7 @@ mod tests {
             let exec_result = program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -353,7 +353,7 @@ mod tests {
             let result = program_validate(
                 expression.as_ptr(),
                 ptr::null_mut(),
-                &mut variables_len,
+                &raw mut variables_len,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -405,7 +405,7 @@ mod tests {
             let result = program_validate(
                 expression.as_ptr(),
                 ptr::null_mut(),
-                &mut variables_len,
+                &raw mut variables_len,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -480,7 +480,7 @@ mod tests {
             assert!(program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             ));
@@ -550,7 +550,7 @@ mod tests {
             assert!(program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             ));
@@ -643,7 +643,7 @@ mod tests {
             assert!(program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len
             ));
@@ -678,7 +678,7 @@ mod tests {
                 let result = program_validate(
                     expression.as_ptr(),
                     ptr::null_mut(),
-                    &mut variables_len,
+                    &raw mut variables_len,
                     error_buf.as_mut_ptr(),
                     &mut error_len,
                 );
@@ -791,7 +791,7 @@ mod tests {
             assert!(program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len
             ));
@@ -867,7 +867,7 @@ mod tests {
             assert!(program_execute(
                 program_ref,
                 context_ref,
-                &mut result_value,
+                &raw mut result_value,
                 error_buf.as_mut_ptr(),
                 &mut error_len
             ));
@@ -892,7 +892,7 @@ mod tests {
             let result = program_validate(
                 expression.as_ptr(),
                 ptr::null_mut(),
-                &mut variables_len,
+                &raw mut variables_len,
                 error_buf.as_mut_ptr(),
                 &mut error_len,
             );
@@ -979,7 +979,7 @@ mod tests {
                 assert!(program_execute(
                     program_ref,
                     context_ref,
-                    &mut result_value,
+                    &raw mut result_value,
                     error_buf.as_mut_ptr(),
                     &mut error_len
                 ));

@@ -19,6 +19,9 @@ impl Program {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the expression cannot be compiled.
     pub fn compile(&mut self, expression: &str) -> Result<(), String> {
         match CelProgram::compile(expression) {
             Ok(program) => {
@@ -31,6 +34,9 @@ impl Program {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the program has not been compiled or if execution fails.
     pub fn execute(&self, context: &Context) -> Result<CelRustValue, String> {
         let program = self.program.as_ref().ok_or("No expression compiled")?;
 
@@ -265,7 +271,7 @@ fn extract_variables(expression: &str) -> Vec<String> {
 
 fn remove_strings_and_literals(expression: &str) -> String {
     let mut result = String::new();
-    let mut chars = expression.chars().peekable();
+    let mut chars = expression.chars();
 
     while let Some(ch) = chars.next() {
         match ch {
@@ -357,17 +363,20 @@ fn json_to_cel_value(value: &serde_json::Value) -> Result<CelRustValue, String> 
     match value {
         serde_json::Value::Null => Ok(CelRustValue::Null),
         serde_json::Value::Bool(b) => Ok(CelRustValue::Bool(*b)),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(CelRustValue::Int(i))
-            } else if let Some(u) = n.as_u64() {
-                Ok(CelRustValue::UInt(u))
-            } else if let Some(f) = n.as_f64() {
-                Ok(CelRustValue::Float(f))
-            } else {
-                Err("Invalid number format".to_string())
-            }
-        }
+        serde_json::Value::Number(n) => n.as_i64().map_or_else(
+            || {
+                n.as_u64().map_or_else(
+                    || {
+                        n.as_f64().map_or_else(
+                            || Err("Invalid number format".to_string()),
+                            |f| Ok(CelRustValue::Float(f)),
+                        )
+                    },
+                    |u| Ok(CelRustValue::UInt(u)),
+                )
+            },
+            |i| Ok(CelRustValue::Int(i)),
+        ),
         serde_json::Value::String(s) => Ok(CelRustValue::String(s.clone().into())),
         serde_json::Value::Array(arr) => {
             let cel_list: Result<Vec<_>, _> = arr.iter().map(json_to_cel_value).collect();
@@ -670,7 +679,7 @@ mod tests {
             data: super::super::CelValueData { bool_val: true },
         };
 
-        let result = cel_value_to_c_value(&cel_value, &mut c_value);
+        let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
         assert!(result.is_ok());
         assert_eq!(c_value.value_type, super::super::CelValueType::Null);
     }
@@ -683,7 +692,7 @@ mod tests {
             data: super::super::CelValueData { bool_val: false },
         };
 
-        let result = cel_value_to_c_value(&cel_value, &mut c_value);
+        let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
         assert!(result.is_ok());
         assert_eq!(c_value.value_type, super::super::CelValueType::Bool);
         assert!(unsafe { c_value.data.bool_val });
@@ -697,7 +706,7 @@ mod tests {
             data: super::super::CelValueData { int_val: 0 },
         };
 
-        let result = cel_value_to_c_value(&cel_value, &mut c_value);
+        let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
         assert!(result.is_ok());
         assert_eq!(c_value.value_type, super::super::CelValueType::Int);
         assert_eq!(unsafe { c_value.data.int_val }, 42);
@@ -721,7 +730,7 @@ mod tests {
             data: super::super::CelValueData { int_val: 0 },
         };
 
-        let result = cel_value_to_c_value(&cel_value, &mut c_value);
+        let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not yet supported"));
     }
@@ -934,8 +943,8 @@ mod tests {
     #[test]
     fn test_json_to_cel_value_large_numbers() {
         // Test edge case numbers
-        let large_int = serde_json::json!(9_223_372_036_854_775_807_i64); // i64::MAX
-        let result = json_to_cel_value(&large_int);
+        let large_integer = serde_json::json!(9_223_372_036_854_775_807_i64); // i64::MAX
+        let result = json_to_cel_value(&large_integer);
         assert!(result.is_ok());
 
         let large_uint = serde_json::json!(18_446_744_073_709_551_615_u64); // u64::MAX
@@ -972,7 +981,7 @@ mod tests {
                 data: super::super::CelValueData { int_val: 0 },
             };
 
-            let result = cel_value_to_c_value(&cel_value, &mut c_value);
+            let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
 
             match cel_value {
                 cel_interpreter::Value::List(_) | cel_interpreter::Value::Map(_) => {
@@ -1012,7 +1021,7 @@ mod tests {
                 data: super::super::CelValueData { int_val: 0 },
             };
 
-            let result = cel_value_to_c_value(&cel_value, &mut c_value);
+            let result = cel_value_to_c_value(&cel_value, &raw mut c_value);
             assert!(result.is_ok(), "String conversion should succeed for: '{test_str}'");
 
             assert_eq!(c_value.value_type, super::super::CelValueType::String);

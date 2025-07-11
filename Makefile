@@ -144,7 +144,11 @@ lint-lua: container-ci-tooling
 
 .PHONY: lint-rust
 lint-rust: container-ci-tooling
+	$(CONTAINER_CI_TOOLING_RUN) sh -c "id; pwd; echo $$HOME; cargo clippy --version"
 	$(CONTAINER_CI_TOOLING_RUN) cargo clippy --all-targets --all-features -- -D warnings
+
+.PHONY: fmt
+fmt: format
 
 .PHONY: format
 format: format-lua format-rust

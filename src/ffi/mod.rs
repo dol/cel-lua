@@ -79,12 +79,17 @@ pub const extern "C" fn cel_string_pool_size() -> usize {
 // Helper function to convert C string to Rust string
 /// # Safety
 /// The caller must ensure that `ptr` is a valid null-terminated C string pointer
+/// # Errors
+/// Returns an error if the C string is not valid UTF-8
 pub unsafe fn c_str_to_string(ptr: *const c_char) -> Result<String, std::str::Utf8Error> {
     let c_str = CStr::from_ptr(ptr);
     Ok(c_str.to_str()?.to_string())
 }
 
 // String memory management functions - simplified without global state
+/// # Panics
+///
+/// Will panic if unwrap fails
 #[must_use]
 pub fn store_string_in_pool(s: &str) -> *const u8 {
     // Create a CString and convert it to a raw pointer
@@ -133,7 +138,7 @@ pub unsafe extern "C" fn cel_string_free(ptr: *const u8) {
 }
 
 #[cfg(test)]
-pub fn test_cleanup() {
+pub const fn test_cleanup() {
     cel_string_pool_clear();
 }
 
@@ -418,7 +423,10 @@ mod tests {
             assert!(!bool_val.data.bool_val);
             assert_eq!(int_val.data.int_val, i64::MIN);
             assert_eq!(uint_val.data.uint_val, u64::MAX);
-            assert_eq!(double_val.data.double_val, f64::INFINITY);
+            assert!(
+                double_val.data.double_val.is_infinite()
+                    && double_val.data.double_val.is_sign_positive()
+            );
         }
     }
 
