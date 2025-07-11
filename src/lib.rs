@@ -725,7 +725,7 @@ mod tests {
             };
             let uint_val = CelValue {
                 value_type: CelValueType::Uint,
-                data: CelValueData { uint_val: 123456 },
+                data: CelValueData { uint_val: 123_456 },
             };
             let double_val = CelValue {
                 value_type: CelValueType::Double,

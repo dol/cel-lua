@@ -12,7 +12,7 @@ pub struct Program {
 
 impl Program {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             program: None,
             variables: Vec::new(),
@@ -229,7 +229,7 @@ fn extract_variables(expression: &str) -> Vec<String> {
                 let mut peek_chars = chars.clone();
                 skip_whitespace(&mut peek_chars);
 
-                if let Some(&'(') = peek_chars.peek() {
+                if peek_chars.peek() == Some(&'(') {
                     // This is a function call, not a variable
                     continue;
                 }
@@ -238,7 +238,7 @@ fn extract_variables(expression: &str) -> Vec<String> {
             }
 
             // Skip any remaining field access
-            while let Some(&'.') = chars.peek() {
+            while chars.peek() == Some(&'.') {
                 chars.next(); // consume dot
                 while let Some(&next_ch) = chars.peek() {
                     if next_ch.is_alphanumeric() || next_ch == '_' {
@@ -934,15 +934,15 @@ mod tests {
     #[test]
     fn test_json_to_cel_value_large_numbers() {
         // Test edge case numbers
-        let large_int = serde_json::json!(9223372036854775807i64); // i64::MAX
+        let large_int = serde_json::json!(9_223_372_036_854_775_807_i64); // i64::MAX
         let result = json_to_cel_value(&large_int);
         assert!(result.is_ok());
 
-        let large_uint = serde_json::json!(18446744073709551615u64); // u64::MAX
+        let large_uint = serde_json::json!(18_446_744_073_709_551_615_u64); // u64::MAX
         let result = json_to_cel_value(&large_uint);
         assert!(result.is_ok());
 
-        let large_float = serde_json::json!(1.7976931348623157e308); // Close to f64::MAX
+        let large_float = serde_json::json!(1.797_693_134_862_315_7e308); // Close to f64::MAX
         let result = json_to_cel_value(&large_float);
         assert!(result.is_ok());
     }

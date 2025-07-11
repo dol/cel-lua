@@ -21,7 +21,7 @@ impl Context {
     }
 
     #[must_use]
-    pub fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
+    pub const fn get_variables(&self) -> &HashMap<String, serde_json::Value> {
         &self.variables
     }
 
@@ -414,7 +414,10 @@ mod tests {
             serde_json::Value::Number(serde_json::Number::from(0)),
         );
         context.add_variable("float_val".to_string(), serde_json::json!(f64::MAX)); // Close to f64::MAX
-        context.add_variable("small_float".to_string(), serde_json::json!(2.2250738585072014e-308)); // Close to f64::MIN_POSITIVE
+        context.add_variable(
+            "small_float".to_string(),
+            serde_json::json!(2.225_073_858_507_201_4e-308),
+        ); // Close to f64::MIN_POSITIVE
 
         // Test empty collections
         context.add_variable("empty_array".to_string(), serde_json::json!([]));

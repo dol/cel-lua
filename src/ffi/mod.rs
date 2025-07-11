@@ -12,7 +12,7 @@ pub use program::*;
 
 /// CEL value types enum
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CelValueType {
     Null,
     Bool,
@@ -64,7 +64,7 @@ pub struct CelValue {
 /// Note: With the new memory management approach, this is a no-op
 /// Individual strings are freed when `release_string_from_pool` is called
 #[no_mangle]
-pub extern "C" fn cel_string_pool_clear() {
+pub const extern "C" fn cel_string_pool_clear() {
     // No-op with the new approach - memory is managed per-string
 }
 
@@ -72,7 +72,7 @@ pub extern "C" fn cel_string_pool_clear() {
 /// Note: With the new memory management approach, we can't track count
 /// Returns 0 as we don't maintain a global pool anymore
 #[no_mangle]
-pub extern "C" fn cel_string_pool_size() -> usize {
+pub const extern "C" fn cel_string_pool_size() -> usize {
     0 // No global pool anymore
 }
 
@@ -360,9 +360,9 @@ mod tests {
     fn test_cel_value_data_union_safety() {
         // Test that union data can be safely accessed for different types
         let bool_data = CelValueData { bool_val: true };
-        let int_data = CelValueData { int_val: -123456 };
+        let int_data = CelValueData { int_val: -123_456 };
         let uint_data = CelValueData {
-            uint_val: 987654321,
+            uint_val: 987_654_321,
         };
         let double_data = CelValueData {
             double_val: std::f64::consts::PI,
@@ -370,8 +370,8 @@ mod tests {
 
         unsafe {
             assert!(bool_data.bool_val);
-            assert_eq!(int_data.int_val, -123456);
-            assert_eq!(uint_data.uint_val, 987654321);
+            assert_eq!(int_data.int_val, -123_456);
+            assert_eq!(uint_data.uint_val, 987_654_321);
             assert!((double_data.double_val - std::f64::consts::PI).abs() < f64::EPSILON);
         }
     }
