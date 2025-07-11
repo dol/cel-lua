@@ -25,8 +25,8 @@ _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 # - set username/UID to executor
 DOCKER_USER ?= $$(id -u)
 DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
-DOCKER_RUN_ADDITIONAL_FLAGS ?=
-DOCKER_RUN_FLAGS ?= --rm --interactive $(DOCKER_RUN_ADDITIONAL_FLAGS) $(DOCKER_USER_OPT)
+CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS ?=
+CONTAINER_CI_TOOLING_RUN_FLAGS ?= --rm --interactive $(CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS) $(DOCKER_USER_OPT)
 
 MOUNT_PATH_IN_CONTAINER := /workspace
 
@@ -76,7 +76,7 @@ CONTAINER_CI_TOOLING_BUILD ?= DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=$(BUILDKIT_PRO
 	.
 
 # TODO:
-CONTAINER_CI_TOOLING_RUN ?= MSYS_NO_PATHCONV=1 $(DOCKER) run $(DOCKER_RUN_FLAGS) \
+CONTAINER_CI_TOOLING_RUN ?= MSYS_NO_PATHCONV=1 $(DOCKER) run $(CONTAINER_CI_TOOLING_RUN_FLAGS) \
 	-e BUSTED_EMMY_DEBUGGER_HOST='0.0.0.0' \
 	-e BUSTED_EMMY_DEBUGGER_PORT='9966' \
 	-e BUSTED_EMMY_DEBUGGER_SOURCE_PATH='/usr/local/share/lua/5.1/kong/plugins:/usr/local/share/lua/5.1/kong/enterprise_edition' \
@@ -143,8 +143,8 @@ lint-lua: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) luacheck --no-default-config --config .luacheckrc .
 
 .PHONY: lint-rust
+lint-rust: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=-e CARGO_HOME="$(MOUNT_PATH_IN_CONTAINER)/.cargo"
 lint-rust: container-ci-tooling
-	$(CONTAINER_CI_TOOLING_RUN) sh -c "id; pwd; echo $$HOME; cargo clippy --version"
 	$(CONTAINER_CI_TOOLING_RUN) cargo clippy --all-targets --all-features -- -D warnings
 
 .PHONY: fmt
@@ -191,12 +191,12 @@ test-lua: test-busted-luajit test-busted-resty
 test-rust: test-rust-memory-valgrind
 
 .PHONY: test-rust-memory-valgrind
-test-rust-memory-valgrind: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-rust-memory-valgrind: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-rust-memory-valgrind: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
 
 .PHONY: test-busted-luajit
-test-busted-luajit: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-busted-luajit: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-busted-luajit: build container-ci-tooling
 	echo "Running busted-luajit tests..."
 	echo DOCKER_USE_TTY=$(DOCKER_USE_TTY)
@@ -204,7 +204,7 @@ test-busted-luajit: build container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 
 .PHONY: test-busted-resty
-test-busted-resty: DOCKER_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-busted-resty: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
 test-busted-resty: build container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-resty $(BUSTED_ARGS)
 
@@ -213,10 +213,10 @@ test-busted-resty: build container-ci-tooling
 build: $(RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(RELEASE_FOLDER)/libcel_lua.a
 
 $(RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
-	cargo build --release
+	CARGO_HOME=$(PWD)/.cargo cargo build --release
 
 $(DEBUG_RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
-	cargo build
+	CARGO_HOME=$(PWD)/.cargo cargo build
 
 .PHONY: lua-language-server-add-kong
 lua-language-server-add-kong: container-ci-tooling
@@ -225,7 +225,7 @@ lua-language-server-add-kong: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cp -rv /usr/local/openresty/lualib/. $(MOUNT_PATH_IN_CONTAINER)/.luarocks
 
 .PHONY: tooling-shell
-tooling-shell: DOCKER_RUN_ADDITIONAL_FLAGS=--tty
+tooling-shell: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty
 tooling-shell: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) bash
 
