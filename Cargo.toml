@@ -31,3 +31,6 @@ features = ["v4", "serde"]
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[lints.clippy]
+pedantic = "warn"
