@@ -2,7 +2,7 @@ name: Security Scan
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, init]
   pull_request:
     branches: [main, master]
   schedule:
