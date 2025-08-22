@@ -7,6 +7,11 @@ else
   SHLIB_EXT = so
 endif
 
+TTY =
+ifneq ($(MAKE_TERMOUT),)
+TTY = --tty
+endif
+
 LIB_FILES = $(shell find lib -type f -name '*.lua')
 
 ROCKSPEC_DEV_FILE := cel-dev-0.rockspec
@@ -188,23 +193,32 @@ test: test-lua test-rust
 test-lua: test-busted-luajit test-busted-resty
 
 .PHONY: test-rust
-test-rust: test-rust-memory-valgrind
+test-rust: test-rust-memory-valgrind test-rust-address-sanitizer
 
 .PHONY: test-rust-memory-valgrind
-test-rust-memory-valgrind: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-rust-memory-valgrind: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=$(TTY) -e TERM=xterm-256color
 test-rust-memory-valgrind: container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) cargo valgrind test
 
+.PHONY: test-rust-address-sanitizer
+test-rust-address-sanitizer: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=$(TTY) -e TERM=xterm-256color -e RUSTFLAGS="-Z sanitizer=address" -e RUSTDOCFLAGS="-Z sanitizer=address" -e ASAN_OPTIONS="detect_odr_violation=0:abort_on_error=1"
+test-rust-address-sanitizer: container-ci-tooling
+	@echo "🔍 Running AddressSanitizer build and tests..."
+	$(CONTAINER_CI_TOOLING_RUN) cargo +nightly build --target x86_64-unknown-linux-gnu -Z build-std
+	$(CONTAINER_CI_TOOLING_RUN) cargo +nightly test --target x86_64-unknown-linux-gnu -Z build-std
+	@echo "✅ AddressSanitizer tests completed"
+
+.PHONY: address-sanitizer
+address-sanitizer: test-rust-address-sanitizer
+
 .PHONY: test-busted-luajit
-test-busted-luajit: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-busted-luajit: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=$(TTY) -e TERM=xterm-256color
 test-busted-luajit: build container-ci-tooling
 	echo "Running busted-luajit tests..."
-	echo DOCKER_USE_TTY=$(DOCKER_USE_TTY)
-	test -t 1 && echo "--tty" || echo ""
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-luajit $(BUSTED_ARGS)
 
 .PHONY: test-busted-resty
-test-busted-resty: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=--tty -e TERM=xterm-256color
+test-busted-resty: CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS=$(TTY) -e TERM=xterm-256color
 test-busted-resty: build container-ci-tooling
 	$(CONTAINER_CI_TOOLING_RUN) ./hack/tooling/busted-resty $(BUSTED_ARGS)
 

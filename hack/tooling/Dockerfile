@@ -9,6 +9,7 @@ ENV RUSTUP_HOME="/rust/rustup"
 ENV PATH="/rust/cargo/bin:${PATH}"
 
 RUN curl https://sh.rustup.rs -sSf | CARGO_HOME=/rust/cargo sh -s -- -y \
+  && rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu \
   && apt-get update \
   && apt-get install --no-install-recommends -y git=1:2.* cpanminus=1.* valgrind=1:3.* \
   && cargo install --root /rust/cargo cargo-valgrind \
