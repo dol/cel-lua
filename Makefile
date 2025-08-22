@@ -31,7 +31,7 @@ _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 DOCKER_USER ?= $$(id -u)
 DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
 CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS ?=
-CONTAINER_CI_TOOLING_RUN_FLAGS ?= --rm --interactive $(CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS) $(DOCKER_USER_OPT)
+CONTAINER_CI_TOOLING_RUN_FLAGS ?= --rm --interactive $(CONTAINER_CI_TOOLING_RUN_ADDITIONAL_FLAGS)
 
 MOUNT_PATH_IN_CONTAINER := /workspace
 
