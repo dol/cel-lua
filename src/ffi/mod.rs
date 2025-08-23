@@ -611,6 +611,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::indexing_slicing)]
     fn test_string_pool_memory_management() {
         // Test that string memory is properly managed without global state
         let strings = (0..50).map(|i| format!("test_string_{i}")).collect::<Vec<_>>();

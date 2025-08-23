@@ -225,6 +225,7 @@ test-busted-resty: build container-ci-tooling
 # Rust build targets
 .PHONY: build
 build: $(RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(RELEASE_FOLDER)/libcel_lua.a
+build: $(DEBUG_RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(DEBUG_RELEASE_FOLDER)/libcel_lua.a
 
 $(RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
 	CARGO_HOME=$(PWD)/.cargo cargo build --release

@@ -28,6 +28,7 @@ end
 setmetatable(_G, nil)
 
 package.path = "?/init.lua;"..package.path
+package.cpath = "./target/debug/?.so;" .. package.cpath
 
 if ngx ~= nil then
   ngx.exit = function() end

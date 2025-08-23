@@ -127,13 +127,14 @@ fn cel_value_to_json(value: &CelValue) -> Result<serde_json::Value, String> {
     }
 }
 
+/// Copy an error message into a provided buffer, truncating if necessary
 fn copy_error_to_buffer(error: &str, errbuf: *mut u8, errbuf_len: &mut usize) {
     if errbuf.is_null() {
         return;
     }
 
     let error_bytes = error.as_bytes();
-    let copy_len = std::cmp::min(error_bytes.len(), *errbuf_len - 1);
+    let copy_len = std::cmp::min(error_bytes.len(), errbuf_len.saturating_sub(1));
 
     unsafe {
         std::ptr::copy_nonoverlapping(error_bytes.as_ptr(), errbuf, copy_len);
@@ -224,6 +225,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unreachable)]
     fn test_cel_value_to_json_double() {
         let cel_value = CelValue {
             value_type: CelValueType::Double,
@@ -233,11 +235,10 @@ mod tests {
         };
 
         let result = cel_value_to_json(&cel_value).unwrap();
-        if let serde_json::Value::Number(n) = result {
-            assert!((n.as_f64().unwrap() - std::f64::consts::PI).abs() < 0.001);
-        } else {
-            panic!("Expected number");
-        }
+        let serde_json::Value::Number(n) = result else {
+            unreachable!("Expected number, got {result:?}");
+        };
+        assert!((n.as_f64().unwrap() - std::f64::consts::PI).abs() < 0.001);
     }
 
     #[test]
@@ -274,9 +275,9 @@ mod tests {
         copy_error_to_buffer(error_msg, buffer.as_mut_ptr(), &mut buffer_len);
 
         assert_eq!(buffer_len, error_msg.len());
-        assert_eq!(buffer[buffer_len], 0); // null terminator
+        assert_eq!(*buffer.get(buffer_len).unwrap(), 0); // null terminator
 
-        let result_str = std::str::from_utf8(&buffer[..buffer_len]).unwrap();
+        let result_str = std::str::from_utf8(buffer.get(..buffer_len).unwrap()).unwrap();
         assert_eq!(result_str, error_msg);
     }
 
@@ -289,9 +290,9 @@ mod tests {
         copy_error_to_buffer(error_msg, buffer.as_mut_ptr(), &mut buffer_len);
 
         assert_eq!(buffer_len, 9); // 10 - 1 for null terminator
-        assert_eq!(buffer[buffer_len], 0); // null terminator
+        assert_eq!(*buffer.get(buffer_len).unwrap(), 0); // null terminator
 
-        let result_str = std::str::from_utf8(&buffer[..buffer_len]).unwrap();
+        let result_str = std::str::from_utf8(buffer.get(..buffer_len).unwrap()).unwrap();
         assert_eq!(result_str, "This is a");
     }
 
@@ -326,6 +327,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::indexing_slicing)]
     fn test_context_add_variable_array() {
         let mut context = Context::new();
         let array_value = serde_json::json!([1, 2, 3, "four", true]);
@@ -393,9 +395,22 @@ mod tests {
         assert_eq!(variables.len(), 1);
 
         if let Some(value) = variables.get("data") {
-            assert!(value["user"]["profile"]["name"] == "Alice");
-            assert!(value["user"]["profile"]["preferences"]["theme"] == "dark");
-            assert!(value["user"]["permissions"].is_array());
+            assert!(
+                value.get("user").and_then(|u| u.get("profile")).and_then(|p| p.get("name"))
+                    == Some(&serde_json::Value::String("Alice".to_string()))
+            );
+            assert!(
+                value
+                    .get("user")
+                    .and_then(|u| u.get("profile"))
+                    .and_then(|p| p.get("preferences"))
+                    .and_then(|pref| pref.get("theme"))
+                    == Some(&serde_json::Value::String("dark".to_string()))
+            );
+            assert!(value
+                .get("user")
+                .and_then(|u| u.get("permissions"))
+                .is_some_and(serde_json::Value::is_array));
         }
     }
 
@@ -430,12 +445,21 @@ mod tests {
         let variables = context.get_variables();
         assert_eq!(variables.len(), 8);
 
-        assert_eq!(variables["max_i64"], i64::MAX);
-        assert_eq!(variables["min_i64"], i64::MIN);
-        assert_eq!(variables["zero"], 0);
-        assert!(variables["empty_array"].as_array().unwrap().is_empty());
-        assert!(variables["empty_object"].as_object().unwrap().is_empty());
-        assert!(variables["null_value"].is_null());
+        assert_eq!(
+            variables.get("max_i64").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(i64::MAX))
+        );
+        assert_eq!(
+            variables.get("min_i64").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(i64::MIN))
+        );
+        assert_eq!(
+            variables.get("zero").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(0))
+        );
+        assert!(variables.get("empty_array").unwrap().as_array().unwrap().is_empty());
+        assert!(variables.get("empty_object").unwrap().as_object().unwrap().is_empty());
+        assert!(variables.get("null_value").unwrap().is_null());
     }
 
     #[test]
@@ -506,7 +530,7 @@ mod tests {
         assert_eq!(buffer_len, 5);
         assert_eq!(buffer[5], 0); // null terminator
 
-        let result_str = std::str::from_utf8(&buffer[..buffer_len]).unwrap();
+        let result_str = std::str::from_utf8(buffer.get(..buffer_len).unwrap()).unwrap();
         assert_eq!(result_str, error_msg);
     }
 
@@ -521,7 +545,7 @@ mod tests {
         assert_eq!(buffer_len, 1);
         assert_eq!(buffer[1], 0);
 
-        let result_str = std::str::from_utf8(&buffer[..buffer_len]).unwrap();
+        let result_str = std::str::from_utf8(buffer.get(..buffer_len).unwrap()).unwrap();
         assert_eq!(result_str, "x");
     }
 
@@ -562,10 +586,19 @@ mod tests {
         let variables = context.get_variables();
         assert_eq!(variables.len(), 4);
 
-        assert_eq!(variables["变量"], 42);
-        assert_eq!(variables["переменная"], "hello");
-        assert_eq!(variables["変数"], true);
-        assert_eq!(variables["متغير"], std::f64::consts::PI);
+        assert_eq!(
+            variables.get("变量").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(42))
+        );
+        assert_eq!(
+            variables.get("переменная").unwrap(),
+            &serde_json::Value::String("hello".to_string())
+        );
+        assert_eq!(variables.get("変数").unwrap(), &serde_json::Value::Bool(true));
+        assert_eq!(
+            variables.get("متغير").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from_f64(std::f64::consts::PI).unwrap())
+        );
     }
 
     #[test]
@@ -587,11 +620,29 @@ mod tests {
         assert_eq!(variables.len(), 1000);
 
         // Verify some random variables
-        assert_eq!(variables["var_0"]["index"], 0);
-        assert_eq!(variables["var_0"]["even"], true);
-        assert_eq!(variables["var_500"]["index"], 500);
-        assert_eq!(variables["var_500"]["even"], true);
-        assert_eq!(variables["var_999"]["index"], 999);
-        assert_eq!(variables["var_999"]["even"], false);
+        assert_eq!(
+            variables.get("var_0").unwrap().get("index").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(0))
+        );
+        assert_eq!(
+            variables.get("var_0").unwrap().get("even").unwrap(),
+            &serde_json::Value::Bool(true)
+        );
+        assert_eq!(
+            variables.get("var_500").unwrap().get("index").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(500))
+        );
+        assert_eq!(
+            variables.get("var_500").unwrap().get("even").unwrap(),
+            &serde_json::Value::Bool(true)
+        );
+        assert_eq!(
+            variables.get("var_999").unwrap().get("index").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(999))
+        );
+        assert_eq!(
+            variables.get("var_999").unwrap().get("even").unwrap(),
+            &serde_json::Value::Bool(false)
+        );
     }
 }

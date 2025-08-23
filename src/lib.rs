@@ -413,7 +413,7 @@ mod tests {
             assert!(!result, "Should fail validation");
             assert!(error_len > 0, "Should write to error buffer");
             assert!(error_len < error_buf.len(), "Should respect buffer size");
-            assert_eq!(error_buf[error_len], 0, "Should null-terminate error string");
+            assert_eq!(*error_buf.get(error_len).unwrap(), 0, "Should null-terminate error string");
         }
     }
 
@@ -883,7 +883,8 @@ mod tests {
     #[test]
     fn test_large_error_messages() {
         unsafe {
-            let long_invalid_expr = "a".repeat(1000) + " + + + invalid syntax";
+            let mut long_invalid_expr = "a".repeat(1000);
+            long_invalid_expr.push_str(" + + + invalid syntax");
             let expression = CString::new(long_invalid_expr).unwrap();
             let mut variables_len = 0usize;
             let mut error_buf = [0u8; 50]; // Small buffer
@@ -900,7 +901,7 @@ mod tests {
             assert!(!result, "Should fail validation");
             assert!(error_len > 0, "Should write error message");
             assert!(error_len < error_buf.len(), "Should respect buffer bounds");
-            assert_eq!(error_buf[error_len], 0, "Should null-terminate");
+            assert_eq!(*error_buf.get(error_len).unwrap(), 0, "Should null-terminate");
         }
     }
 
