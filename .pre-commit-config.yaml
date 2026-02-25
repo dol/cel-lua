@@ -1,0 +1,102 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  # Lua linting with luacheck using local system installation
+  - repo: local
+    hooks:
+      - id: luacheck
+        name: luacheck (Lua linting)
+        entry: bash -c 'make lint-lua'
+        language: system
+        files: \.lua$
+        pass_filenames: false
+        always_run: false
+
+  # Lua code formatting with stylua using local system installation
+  - repo: local
+    hooks:
+      - id: stylua
+        name: stylua (Lua formatting)
+        entry: bash -c 'make format-lua'
+        language: system
+        files: \.lua$
+        pass_filenames: false
+        always_run: false
+
+  # Rust formatting, linting, and quality checks
+  - repo: local
+    hooks:
+      - id: cargo-clippy
+        name: cargo clippy (Rust linting)
+        entry: bash -c 'make lint-rust'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        always_run: false
+
+      - id: cargo-fmt
+        name: cargo fmt (Rust formatting)
+        entry: bash -c 'make format-rust'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        always_run: false
+
+
+      - id: cargo-check
+        name: cargo check (Rust compilation)
+        entry: cargo check --all-targets --all-features
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        always_run: false
+
+      - id: cargo-test
+        name: cargo test (Rust testing)
+        entry: cargo test --all-features
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        always_run: false
+
+      - id: cargo-audit
+        name: cargo audit (Rust security audit)
+        entry: bash
+        language: system
+        files: \.(rs|toml|lock)$
+        pass_filenames: false
+        always_run: false
+        args: [-c, 'cargo audit || (echo "cargo-audit not installed. Install with: cargo install cargo-audit" && exit 0)']
+
+  # Markdown linting with markdownlint-cli
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
+        name: markdownlint (Markdown linting)
+        entry: markdownlint
+        language: node
+        files: \.md$
+        args: [--config, .markdownlint.yaml]
+        pass_filenames: true
+
+  # Additional useful hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        exclude: \.patch$
+      - id: end-of-file-fixer
+        name: Fix end of files
+        exclude: \.patch$
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: mixed-line-ending
+        name: Check for mixed line endings
+        args: [--fix=lf]

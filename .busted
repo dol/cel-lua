@@ -1,0 +1,17 @@
+-- luacheck: ignore 631
+return {
+  _all = {
+    ROOT = { "./spec" },
+    verbose = false,
+    ["coverage-config-file"] = "./.luacov",
+  },
+  default = {
+    output = "gtest",
+  },
+  ci = {
+    output = "junit",
+    -- First argument is the path to the output file
+    -- https://github.com/lunarmodules/busted/blob/a144124839f027a2d0a95791936c478d047126fc/busted/outputHandlers/junit.lua#L34C34-L34C43
+    Xoutput = "./test-results/busted-junit.xml",
+  },
+}

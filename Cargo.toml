@@ -1,0 +1,37 @@
+[package]
+name = "cel-lua"
+version = "0.1.0"
+edition = "2021"
+authors = ["CEL Lua Contributors"]
+description = "CEL (Common Expression Language) library for Lua with FFI bindings"
+license = "MIT"
+repository = "https://github.com/cel-lua/cel-lua"
+homepage = "https://github.com/cel-lua/cel-lua"
+documentation = "https://github.com/cel-lua/cel-lua"
+keywords = ["cel", "lua", "expression", "language", "ffi"]
+categories = ["api-bindings", "parser-implementations"]
+readme = "README.md"
+
+[lib]
+name = "cel_lua"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+# Using cel-interpreter from clarkmcc/cel-rust
+cel-interpreter = "0.9.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+lazy_static = "1.5"
+
+[dependencies.uuid]
+version = "1.0"
+features = ["v4", "serde"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[lints.clippy]
+pedantic = "warn"
+nursery = "warn"

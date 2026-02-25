@@ -1,0 +1,109 @@
+OS = $(shell uname -s)
+
+ifeq ($(OS), Darwin)
+  SHLIB_EXT = dylib
+else
+  SHLIB_EXT = so
+endif
+
+OPENRESTY_PREFIX = /usr/local/openresty
+
+#LUA_VERSION := 5.1
+PREFIX ?= /usr/local
+LUA_INCLUDE_DIR ?= $(PREFIX)/include
+LUA_LIB_DIR ?= $(PREFIX)/lib/lua/$(LUA_VERSION)
+INSTALL ?= install
+RELEASE_FOLDER = target/release
+DEBUG_RELEASE_FOLDER = target/debug
+
+.PHONY: all test install build clean
+
+all: ;
+
+build: $(RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(RELEASE_FOLDER)/libcel_lua.a
+
+$(RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
+	cargo build --release
+
+$(DEBUG_RELEASE_FOLDER)/libcel_lua.%: src/**/*.rs src/*.rs
+	cargo build
+
+install-lualib:
+	$(INSTALL) -d $(DESTDIR)$(LUA_LIB_DIR)/resty/cel/
+	$(INSTALL) -m 664 lib/resty/cel/*.lua $(DESTDIR)$(LUA_LIB_DIR)/resty/cel/
+
+install: build install-lualib
+	$(INSTALL) -m 775 $(RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(DESTDIR)$(LUA_LIB_DIR)/libcel_lua.$(SHLIB_EXT)
+
+install-debug: $(DEBUG_RELEASE_FOLDER)/libcel_lua.% install-lualib
+	$(INSTALL) -m 775 $(DEBUG_RELEASE_FOLDER)/libcel_lua.$(SHLIB_EXT) $(DESTDIR)$(LUA_LIB_DIR)/libcel_lua.$(SHLIB_EXT)
+
+
+
+test: $(DEBUG_RELEASE_FOLDER)/libcel_lua.%
+	PATH="$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH" \
+  LUA_PATH="$(realpath lib)/?.lua;$(realpath lib)/?/init.lua;;" \
+  LUA_CPATH="$(realpath $(DEBUG_RELEASE_FOLDER))/?.so;;" \
+  prove -r t/
+
+test-standalone: $(DEBUG_RELEASE_FOLDER)/libcel_lua.%
+	LUA_PATH="$(realpath lib)/?.lua;$(realpath lib)/?/init.lua;;" \
+  LUA_CPATH="$(realpath $(DEBUG_RELEASE_FOLDER))/?.so;;" \
+  luajit test_standalone.lua
+
+example: $(DEBUG_RELEASE_FOLDER)/libcel_lua.%
+	LUA_PATH="$(realpath lib)/?.lua;$(realpath lib)/?/init.lua;;" \
+  LUA_CPATH="$(realpath $(DEBUG_RELEASE_FOLDER))/?.so;;" \
+  luajit examples/basic.lua
+
+valgrind: $(DEBUG_RELEASE_FOLDER)/libcel_lua.%
+	PATH="$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH" \
+  LUA_PATH="$(realpath lib)/?.lua;$(realpath lib)/?/init.lua;;" \
+  LUA_CPATH="$(realpath $(DEBUG_RELEASE_FOLDER))/?.so;;" \
+  TEST_NGINX_USE_VALGRIND=1 prove -r t/
+
+clean:
+	cargo clean
+
+# Container-based testing targets
+CONTAINER_TESTING_IMAGE_NAME = cel-lua-test-tooling
+CONTAINER_TESTING_IMAGE_TAG = latest
+
+.PHONY: container-build-tooling container-test container-test-standalone container-example container-shell container-clean
+
+container-build-tooling:
+	docker build -f hack/tooling/Dockerfile -t $(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) .
+
+container-test: container-build-tooling
+	docker run --rm \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		-e TEST_NGINX_SERVROOT=/var/run/servroot \
+		$(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) \
+		bash -c "source ~/.cargo/env && make test"
+
+container-test-standalone: container-build-tooling
+	docker run --rm \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		$(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) \
+		bash -c "source ~/.cargo/env && make test-standalone"
+
+container-example: container-build-tooling
+	docker run --rm \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		$(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) \
+		bash -c "source ~/.cargo/env && make example"
+
+container-shell: container-build-tooling
+	docker run --rm -it \
+		-v $(PWD):/workspace \
+		-w /workspace \
+  		-e LUA_PATH="/workspace/lib/?.lua;/workspace/lib/?/init.lua;;" \
+  		-e LUA_CPATH="/workspace/$(DEBUG_RELEASE_FOLDER)/?.so;;" \
+		$(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) \
+		bash -c "source ~/.cargo/env && exec bash"
+
+container-clean:
+	docker rmi $(CONTAINER_TESTING_IMAGE_NAME):$(CONTAINER_TESTING_IMAGE_TAG) || true

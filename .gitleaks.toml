@@ -1,0 +1,63 @@
+# GitLeaks configuration for detecting secrets
+# https://github.com/gitleaks/gitleaks
+
+title = "Gitleaks Config for CEL-Lua"
+
+[extend]
+# Extend default rules
+useDefault = true
+
+[[rules]]
+id = "github-token"
+description = "GitHub Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+id = "github-app-token"
+description = "GitHub App Token"
+regex = '''(ghu|ghs)_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+id = "github-refresh-token"
+description = "GitHub Refresh Token"
+regex = '''ghr_[0-9a-zA-Z]{76}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+id = "api-key-generic"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|secret[_-]?key|secretkey)['"]*\s*[:=]\s*['"][a-zA-Z0-9_\-]{16,}['"]'''
+tags = ["key", "API"]
+
+[allowlist]
+description = "Global allowlist"
+regexes = [
+  # Allow test keys or example values
+  '''test[_-]?key''',
+  '''example[_-]?key''',
+  '''dummy[_-]?key''',
+  '''fake[_-]?key''',
+  '''mock[_-]?key''',
+  # Allow placeholder values
+  '''your[_-]?key[_-]?here''',
+  '''replace[_-]?with[_-]?your[_-]?key''',
+  # Allow documentation examples
+  '''sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}''', # OpenAI API key format in docs
+]
+
+paths = [
+  # Ignore certain file types that might contain false positives
+  '''.*\.lock$''',
+  '''.*\.md$''',
+  '''.*\.txt$''',
+  '''.*\.yml$''',
+  '''.*\.yaml$''',
+]

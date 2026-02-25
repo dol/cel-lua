@@ -1,0 +1,81 @@
+# Rust
+/target/
+**/*.rs.bk
+.cargo/
+
+# Lua
+*.so
+*.dylib
+
+# Generated files
+include/
+
+# Test outputs
+servroot/
+t/servroot/
+
+# Logs
+*.log
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development artifacts
+*.orig
+*.rej
+
+
+# TODO
+# servroot typically is the Kong working directory for tests
+servroot
+# exclude generated packed rocks
+*.rock
+# exclude LuaCov statistics file
+luacov.stats.out
+# exclude LuaCov report
+luacov.report.out
+# Exclude all rockspec files except the main one
+/*.rockspec
+!/kong-plugin.rockspec
+# curl netrc
+/.netrc
+# Temporary ubi.repo
+/_build/images/kong-tooling/ubi.repo
+# Kong files for Lua language server
+/.luals/
+
+# Luarocks
+/luarocks.bat
+/lua.bat
+/lua_modules/
+/.luarocks
+
+hack/tooling/docker.build.metadata.json
+/.docker/
+
+# Local folder for scratch files
+/tmp/
+
+# Local folder for scratch files
+/spec/stub/openfga.sqlite-shm
+/spec/stub/openfga.sqlite-wal
+
+# -------------
+# Created by https://www.toptal.com/developers/gitignore/api/git,lua,visualstudiocode,intellij,sublimetext,windows,macos,linux,dotenv,direnv
+# Edit at https://www.toptal.com/developers/gitignore?templates=git,lua,visualstudiocode,intellij,sublimetext,windows,macos,linux,dotenv,direnv
+
+### direnv ###
+.direnv
+.envrc
+
+### dotenv ###
+.env

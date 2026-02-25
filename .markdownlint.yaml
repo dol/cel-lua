@@ -1,0 +1,43 @@
+# Markdownlint configuration
+# See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md for rule documentation
+
+# Default state for all rules
+default: true
+
+# Rules configuration
+MD001: true    # Heading levels should only increment by one level at a time
+MD003:         # Heading style
+  style: atx   # Use ATX style headers (# ## ###)
+MD004:         # Unordered list style
+  style: dash  # Use dashes for unordered lists
+MD007:         # Unordered list indentation
+  indent: 2    # 2 spaces for nested list items
+MD010: false   # Hard tabs - disabled (allow tabs)
+MD013:         # Line length
+  line_length: 120  # Allow longer lines for technical documentation
+  heading_line_length: 120
+  code_block_line_length: 120
+  tables: false      # Don't check line length in tables
+MD024:         # Multiple headings with the same content
+  siblings_only: true  # Only check sibling headings
+MD025:         # Multiple top level headings in the same document
+  front_matter_title: ""  # Allow multiple H1 if front matter has title
+MD026:         # Trailing punctuation in heading
+  punctuation: ".,;:!?"
+MD029:         # Ordered list item prefix
+  style: one_or_ordered  # Allow 1. or 01. style
+MD033:         # Inline HTML
+  allowed_elements:  # Allow some HTML elements commonly used in README files
+    - br
+    - img
+    - a
+    - sup
+    - sub
+    - details
+    - summary
+MD034: false   # Bare URL used - disabled (allow bare URLs)
+MD041: false   # First line in file should be a top level heading - disabled
+MD046:         # Code block style
+  style: fenced  # Prefer fenced code blocks
+MD048:         # Code fence style
+  style: backtick  # Use backticks for code fences

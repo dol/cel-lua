@@ -1,0 +1,79 @@
+name: Format & Lint
+
+on:
+  push:
+    branches: [main, master, init]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Cancel previous runs if new commits are pushed to the PR, but run for each commit on main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  format-lint:
+    name: Format & Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build CI tooling container
+        id: build-ci-tooling
+        uses: docker/build-push-action@v6
+        with:
+          file: hack/tooling/Dockerfile
+          context: .
+          push: false
+          tags: localhost/cel-lua-test-tooling:0.1.0
+          outputs: type=docker
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save docker build metadata
+        run: |
+          echo '${{ steps.build-ci-tooling.outputs.metadata }}' > hack/tooling/docker.build.metadata.json
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: .cargo
+
+      - name: Check Rust formatting
+        run: |
+          echo "🔍 Checking Rust code formatting..."
+          make format-rust
+          echo "✅ Rust code is properly formatted"
+
+      - name: Check Lua formatting
+        run: |
+          echo "🔍 Checking Lua code formatting with stylua..."
+          make format-lua
+          echo "✅ Lua code is properly formatted"
+
+      - uses: tj-actions/verify-changed-files@a1c6acee9df209257a246f2cc6ae8cb6581c1edf # v20
+        id: verify-changed-files
+        with:
+          fail-if-changed: "true"
+
+      - name: Run Rust linting
+        run: |
+          echo "🔍 Running Rust linting with Clippy..."
+          make lint-rust
+          echo "✅ No Rust clippy warnings found"
+
+      - name: Run Lua linting
+        run: |
+          echo "🔍 Running Lua linting with luacheck..."
+          make lint-lua
+          echo "✅ No Lua luacheck warnings found"
